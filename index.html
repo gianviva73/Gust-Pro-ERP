@@ -1,0 +1,1396 @@
+```html
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GustòPro ERP — Ristorante, F&B & Banqueting</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    @media print {
+      body { background: #fff !important; color: #0f172a !important; }
+      #app-shell, #modal-container, #toast-container { display: none !important; }
+      #print-area { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+      tr { page-break-inside: avoid; }
+    }
+    #print-area { display: none; }
+    .tableau-canvas { background-image: radial-gradient(#cbd5e1 1px, transparent 1px); background-size: 20px 20px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+
+  <div id="app-shell" class="min-h-screen flex flex-col lg:flex-row">
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 flex flex-col transition-transform duration-200 -translate-x-full lg:translate-x-0 lg:static lg:shrink-0">
+      <div class="h-16 px-5 flex items-center justify-between border-b border-slate-800 bg-slate-950/50">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-500 to-amber-500 flex items-center justify-center text-white shadow">
+            <i data-lucide="chef-hat" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="text-white font-bold text-base leading-none">GustòPro <span class="text-emerald-400">ERP</span></div>
+            <div class="text-[11px] text-slate-400 mt-0.5">F&B & Banqueting Suite</div>
+          </div>
+        </div>
+        <button onclick="toggleSidebar()" class="lg:hidden text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1" id="sidebar-nav"></nav>
+      <div class="p-4 border-t border-slate-800 bg-slate-950/40 text-xs">
+        <div class="flex items-center justify-between text-slate-400 mb-1">
+          <span>Salvataggio</span>
+          <span class="inline-flex items-center gap-1 text-emerald-400 font-medium"><span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Auto</span>
+        </div>
+        <div id="sidebar-alerts-summary" class="text-[11px] text-amber-400/90"></div>
+      </div>
+    </aside>
+
+    <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-950/60 z-30 hidden lg:hidden"></div>
+
+    <div class="flex-1 flex flex-col min-w-0">
+      <header class="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200 px-4 lg:px-6 py-3">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100"><i data-lucide="menu" class="w-5 h-5"></i></button>
+            <div>
+              <h1 id="page-title" class="text-lg font-bold text-slate-900">Dashboard Direzionale</h1>
+              <p id="page-subtitle" class="text-xs text-slate-500">Controllo di Gestione F&B, Ristorante & Banqueting</p>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="exportJSONBackup()" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 border border-slate-200"><i data-lucide="download" class="w-3.5 h-3.5 text-emerald-600"></i><span class="hidden sm:inline">Esporta Backup (JSON)</span><span class="sm:hidden">JSON</span></button>
+            <label class="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 border border-slate-200"><i data-lucide="upload" class="w-3.5 h-3.5 text-amber-600"></i><span class="hidden sm:inline">Importa Backup (JSON)</span><span class="sm:hidden">Importa</span><input type="file" accept=".json" onchange="importJSONBackup(event)" class="hidden" /></label>
+            <div class="relative inline-block" id="csv-dropdown-wrapper">
+              <button onclick="toggleCsvMenu()" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200"><i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i><span class="hidden md:inline">Esporta Dati in CSV/Excel</span><span class="md:hidden">CSV</span><i data-lucide="chevron-down" class="w-3 h-3"></i></button>
+              <div id="csv-dropdown" class="hidden absolute right-0 mt-1.5 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 text-xs">
+                <button onclick="exportCSV('ingredients')" class="w-full text-left px-3.5 py-2 hover:bg-slate-50">Materie Prime F&B</button>
+                <button onclick="exportCSV('equipment')" class="w-full text-left px-3.5 py-2 hover:bg-slate-50">Attrezzature & Noleggi</button>
+                <button onclick="exportCSV('recipes')" class="w-full text-left px-3.5 py-2 hover:bg-slate-50">Ricettario & Food Cost</button>
+                <button onclick="exportCSV('events')" class="w-full text-left px-3.5 py-2 hover:bg-slate-50">Eventi & Conti Economici</button>
+                <button onclick="exportCSV('menu_eng')" class="w-full text-left px-3.5 py-2 hover:bg-slate-50">Menu Engineering</button>
+              </div>
+            </div>
+            <button onclick="loadDemoDataConfirm()" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200"><i data-lucide="sparkles" class="w-3.5 h-3.5"></i><span class="hidden xl:inline">Carica Dati Demo</span><span class="xl:hidden">Demo</span></button>
+            <button onclick="resetAllDataConfirm()" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span class="hidden xl:inline">Reset Dati</span><span class="xl:hidden">Reset</span></button>
+          </div>
+        </div>
+      </header>
+      <main id="main-content" class="flex-1 p-4 lg:p-6 max-w-[1600px] w-full mx-auto"></main>
+    </div>
+  </div>
+
+  <div id="modal-container" class="fixed inset-0 z-50 hidden overflow-y-auto bg-slate-950/60 backdrop-blur-sm p-3 sm:p-6 flex items-start justify-center">
+    <div id="modal-box" class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-4xl my-4 overflow-hidden"></div>
+  </div>
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm"></div>
+  <div id="print-area" class="p-8 bg-white text-slate-900"></div>
+
+  <script>
+    const STORAGE_KEY = 'gustopro_fb_banqueting_v1';
+    const ALLERGENS = [
+      { id: 'glutine', label: 'Glutine', short: 'GLU' }, { id: 'crostacei', label: 'Crostacei', short: 'CRO' },
+      { id: 'uova', label: 'Uova', short: 'UOV' }, { id: 'pesce', label: 'Pesce', short: 'PES' },
+      { id: 'arachidi', label: 'Arachidi', short: 'ARA' }, { id: 'soia', label: 'Soia', short: 'SOI' },
+      { id: 'latte', label: 'Latte', short: 'LAT' }, { id: 'frutta_guscio', label: 'Frutta a guscio', short: 'FRU' },
+      { id: 'sedano', label: 'Sedano', short: 'SED' }, { id: 'senape', label: 'Senape', short: 'SEN' },
+      { id: 'sesamo', label: 'Sesamo', short: 'SES' }, { id: 'solfiti', label: 'Solfiti', short: 'SOL' },
+      { id: 'lupini', label: 'Lupini', short: 'LUP' }, { id: 'molluschi', label: 'Molluschi', short: 'MOL' }
+    ];
+    const ING_CATS = ['Carne', 'Pesce', 'Ortofrutta', 'Latticini', 'Dry', 'Vini/Beverage', 'Consumabili'];
+    const EQ_CATS = ['Tavoli', 'Sedie', 'Tovagliato', 'Posateria', 'Cristalleria', 'Porcellane', 'Attrezzatura cucina mobile', 'Allestimenti'];
+    const EV_STATUSES = ['Preventivo', 'Prova Menu', 'Confermato', 'Concluso', 'Annullato'];
+    const EV_TYPES = ['Matrimonio', 'Aziendale', 'Battesimo', 'Festa Privata'];
+    const NAV_ITEMS = [
+      { id: 'dashboard', label: 'Dashboard Direzionale', icon: 'layout-dashboard', sub: 'Controllo di Gestione F&B, Prime Cost e Margini' },
+      { id: 'ingredients', label: 'Materie Prime F&B', icon: 'carrot', sub: 'Anagrafica, Scarti, Costo Netto & 14 Allergeni' },
+      { id: 'equipment', label: 'Attrezzature & Noleggi', icon: 'armchair', sub: 'Asset Banqueting e Disponibilità per Data' },
+      { id: 'recipes', label: 'Schede Tecniche & Menu', icon: 'book-open', sub: 'Ricettario, Semilavorati e Pacchetti Banqueting' },
+      { id: 'events', label: 'Eventi & Banqueting', icon: 'calendar-heart', sub: 'CRM Matrimoni, Conto Economico, Tavoli & BEO' },
+      { id: 'inventory', label: 'Magazzino & Ordini', icon: 'warehouse', sub: 'Carichi DDT, Scarichi Venduto e Fabbisogno 7gg' },
+      { id: 'staff', label: 'Personale, Turni & Fornitori', icon: 'users', sub: 'Brigata, Turni Settimanali & Rubrica Fornitori' },
+      { id: 'menu-engineering', label: 'Menu Engineering', icon: 'trending-up', sub: 'Matrice Kasavana & Smith (À La Carte)' }
+    ];
+
+    let state = { ingredients: [], equipment: [], recipes: [], packages: [], events: [], suppliers: [], staff: [], shifts: [], movements: [], restaurantSales: [] };
+    let ui = {
+      activeTab: 'dashboard', dashboardFilter: 'all', ingSearch: '', ingCategory: 'Tutte',
+      eqSearch: '', eqCategory: 'Tutte', eqCheckDate: '', recipeSubTab: 'recipes', recipeSearch: '',
+      eventFilterStatus: 'Tutti', activeEventId: null, activeEventSubTab: 'overview',
+      inventorySubTab: 'carico', staffSubTab: 'staff', shiftWeekStart: ''
+    };
+    let chartInstances = {};
+    let draggedTableInfo = null;
+
+    // Helpers
+    const todayStr = (off = 0) => { const d = new Date(); d.setDate(d.getDate() + off); return d.toISOString().split('T')[0]; };
+    const getMonday = (s) => { const d = s ? new Date(s + 'T12:00:00') : new Date(); const day = d.getDay(); d.setDate(d.getDate() - day + (day === 0 ? -6 : 1)); return d.toISOString().split('T')[0]; };
+    const addDays = (s, n) => { const d = new Date(s + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().split('T')[0]; };
+    const fmtDate = (s) => { if (!s) return '-'; const p = s.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : s; };
+    const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+    const fmtEuro = (n) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(n) || 0);
+    const fmtNum = (n, d = 2) => new Intl.NumberFormat('it-IT', { minimumFractionDigits: d, maximumFractionDigits: d }).format(Number(n) || 0);
+    const uid = (p = 'id') => `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    const esc = (s) => s == null ? '' : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
+    function showToast(msg, type = 'success') {
+      const c = document.getElementById('toast-container');
+      const cls = { success: 'bg-emerald-900 border-emerald-700', warning: 'bg-amber-900 border-amber-700', error: 'bg-rose-900 border-rose-700', info: 'bg-slate-900 border-slate-700' };
+      const t = document.createElement('div');
+      t.className = `flex items-center gap-2 px-4 py-3 rounded-xl shadow-xl border text-white text-xs font-medium transition ${cls[type] || cls.info}`;
+      t.innerHTML = `<i data-lucide="info" class="w-4 h-4 shrink-0"></i><span>${esc(msg)}</span>`;
+      c.appendChild(t); lucide.createIcons({ nodes: [t] });
+      setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
+    }
+
+    function openModal(html) {
+      const box = document.getElementById('modal-box');
+      box.innerHTML = html;
+      document.getElementById('modal-container').classList.remove('hidden');
+      lucide.createIcons({ nodes: [box] });
+    }
+    function closeModal() { document.getElementById('modal-container').classList.add('hidden'); }
+
+    // =========================================================================
+    // MATH ENGINE F&B
+    // =========================================================================
+    function getIngUsablePurchaseCost(ing) {
+      const w = Math.min(Math.max(Number(ing.wastePct) || 0, 0), 99);
+      return round2((Number(ing.priceNet) || 0) / (1 - w / 100));
+    }
+    function getIngUsableUseUnitCost(ing) {
+      return getIngUsablePurchaseCost(ing) / Math.max(Number(ing.conversionFactor) || 1, 0.0001);
+    }
+
+    function getRecipeAnalysis(recipeId, visited = new Set()) {
+      const r = state.recipes.find(x => x.id === recipeId);
+      if (!r || visited.has(recipeId)) return { totalCost: 0, costPerYieldUnit: 0, foodCostPct: 0, margin: 0, allergens: [], grossPrice: 0 };
+      visited.add(recipeId);
+      let totalCost = 0; const al = new Set();
+      (r.items || []).forEach(it => {
+        if (it.type === 'ingredient') {
+          const ing = state.ingredients.find(i => i.id === it.refId);
+          if (ing) { totalCost += getIngUsableUseUnitCost(ing) * (Number(it.qty) || 0); (ing.allergens || []).forEach(a => al.add(a)); }
+        } else {
+          const sub = getRecipeAnalysis(it.refId, new Set(visited));
+          totalCost += sub.costPerYieldUnit * (Number(it.qty) || 0); sub.allergens.forEach(a => al.add(a));
+        }
+      });
+      totalCost = round2(totalCost);
+      const yq = Math.max(Number(r.yieldQty) || 1, 0.0001);
+      const sell = Number(r.sellingPriceNet) || 0;
+      return {
+        totalCost, costPerYieldUnit: r.isSemiFinished ? (totalCost / yq) : totalCost,
+        foodCostPct: sell > 0 ? round2((totalCost / sell) * 100) : 0,
+        margin: round2(sell - totalCost), allergens: Array.from(al),
+        grossPrice: round2(sell * (1 + (Number(r.vatPct) || 10) / 100))
+      };
+    }
+
+    function explodeRecipe(recipeId, mult = 1, acc = {}, visited = new Set()) {
+      const r = state.recipes.find(x => x.id === recipeId);
+      if (!r || visited.has(recipeId)) return acc;
+      visited.add(recipeId);
+      (r.items || []).forEach(it => {
+        if (it.type === 'ingredient') {
+          const ing = state.ingredients.find(i => i.id === it.refId);
+          if (ing) {
+            const conv = Math.max(Number(ing.conversionFactor) || 1, 0.0001);
+            const w = Math.min(Math.max(Number(ing.wastePct) || 0, 0), 99);
+            acc[ing.id] = (acc[ing.id] || 0) + ((Number(it.qty) || 0) * mult) / (conv * (1 - w / 100));
+          }
+        } else {
+          const sr = state.recipes.find(x => x.id === it.refId);
+          if (sr) explodeRecipe(sr.id, ((Number(it.qty) || 0) * mult) / Math.max(Number(sr.yieldQty) || 1, 0.0001), acc, new Set(visited));
+        }
+      });
+      return acc;
+    }
+
+    function getPackageAnalysis(pkgId) {
+      const pkg = state.packages.find(p => p.id === pkgId);
+      if (!pkg) return { adultCost: 0, childCost: 0, adultPrice: 0, childPrice: 0, adultMargin: 0, adultMarginPct: 0, foodCostPct: 0, allergens: [] };
+      let adultCost = 0; const al = new Set();
+      (pkg.recipeIds || []).forEach(rid => { const ra = getRecipeAnalysis(rid); adultCost += ra.totalCost; ra.allergens.forEach(a => al.add(a)); });
+      adultCost = round2(adultCost);
+      const childCost = round2(adultCost * ((Number(pkg.childCostPct) || 50) / 100));
+      const ap = Number(pkg.adultPriceNet) || 0, cp = Number(pkg.childPriceNet) || 0, am = round2(ap - adultCost);
+      return { adultCost, childCost, adultPrice: ap, childPrice: cp, adultMargin: am, adultMarginPct: ap > 0 ? round2((am / ap) * 100) : 0, foodCostPct: ap > 0 ? round2((adultCost / ap) * 100) : 0, allergens: Array.from(al) };
+    }
+
+    function getEquipmentAvailability(eqId, dateStr, excludeEvId = null) {
+      const eq = state.equipment.find(e => e.id === eqId);
+      if (!eq) return { total: 0, committed: 0, available: 0 };
+      const total = Number(eq.totalQty) || 0;
+      let committed = 0;
+      if (dateStr) {
+        state.events.forEach(ev => {
+          if (ev.id !== excludeEvId && ev.date === dateStr && ev.status === 'Confermato') {
+            const f = (ev.equipmentList || []).find(i => i.equipmentId === eqId);
+            if (f) committed += Number(f.qty) || 0;
+          }
+        });
+      }
+      return { total, committed, available: Math.max(0, total - committed - (eq.status === 'Manutenzione' ? total : 0)) };
+    }
+
+    function getEventFinancials(ev) {
+      if (!ev) return {};
+      const pkg = getPackageAnalysis(ev.packageId);
+      const ad = Number(ev.adults) || 0, ch = Number(ev.children) || 0, sm = Number(ev.staffMeals) || 0;
+      const menuRevenue = round2(ad * pkg.adultPrice + ch * pkg.childPrice);
+      const extrasRevenue = round2((ev.extras || []).reduce((s, x) => s + (Number(x.clientPrice) || 0), 0));
+      const totalRevenue = round2(menuRevenue + extrasRevenue);
+      const foodCost = round2(ad * pkg.adultCost + ch * pkg.childCost + sm * round2(pkg.adultCost * 0.35));
+      const extrasCost = round2((ev.extras || []).reduce((s, x) => s + (Number(x.supplierCost) || 0), 0));
+      const rentalCost = round2((ev.equipmentList || []).reduce((s, it) => {
+        const eq = state.equipment.find(e => e.id === it.equipmentId);
+        return s + (eq && eq.type === 'A Noleggio' ? (Number(eq.rentalCost) || 0) * (Number(it.qty) || 0) : 0);
+      }, 0));
+      const staffCost = round2((ev.staffAssigned || []).reduce((s, sa) => {
+        const p = state.staff.find(x => x.id === sa.staffId);
+        return s + (p ? (Number(p.hourlyCost) || 0) * (Number(sa.hours) || 0) : 0);
+      }, 0));
+      const totalCosts = round2(foodCost + staffCost + rentalCost + extrasCost);
+      const netProfit = round2(totalRevenue - totalCosts);
+      const paidAmount = round2((ev.payments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0));
+      return {
+        menuRevenue, extrasRevenue, totalRevenue, foodCost, staffCost, rentalCost, extrasCost, totalCosts, netProfit,
+        netMarginPct: totalRevenue > 0 ? round2((netProfit / totalRevenue) * 100) : 0,
+        foodCostPct: totalRevenue > 0 ? round2((foodCost / totalRevenue) * 100) : 0,
+        labourCostPct: totalRevenue > 0 ? round2((staffCost / totalRevenue) * 100) : 0,
+        paidAmount, balanceDue: round2(totalRevenue - paidAmount)
+      };
+    }
+
+    function getDashboardMetrics(mode = 'all') {
+      const mPref = todayStr().slice(0, 7);
+      const evs = state.events.filter(e => (e.status === 'Confermato' || e.status === 'Concluso') && (mode === 'month' ? (e.date || '').startsWith(mPref) : true));
+      let bRev = 0, bFC = 0, bLC = 0, bEx = 0;
+      evs.forEach(e => { const f = getEventFinancials(e); bRev += f.totalRevenue; bFC += f.foodCost; bLC += f.staffCost; bEx += f.rentalCost + f.extrasCost; });
+
+      let rRev = 0, rFC = 0;
+      state.restaurantSales.filter(s => mode === 'month' ? (s.date || '').startsWith(mPref) : true).forEach(s => {
+        const r = state.recipes.find(x => x.id === s.recipeId);
+        if (r) { rRev += (Number(s.qty) || 0) * (Number(r.sellingPriceNet) || 0); rFC += (Number(s.qty) || 0) * getRecipeAnalysis(r.id).totalCost; }
+      });
+
+      let rLC = 0;
+      state.shifts.filter(sh => mode === 'month' ? (sh.date || '').startsWith(mPref) : true).forEach(sh => {
+        const st = state.staff.find(p => p.id === sh.staffId);
+        if (st) rLC += (Number(sh.hours) || 0) * (Number(st.hourlyCost) || 0);
+      });
+
+      const waste = state.movements.filter(m => m.type === 'SCARTO' && (mode === 'month' ? (m.date || '').startsWith(mPref) : true)).reduce((s, m) => s + (Number(m.totalValue) || 0), 0);
+      const totalRevenue = round2(bRev + rRev);
+      const totalFoodCost = round2(bFC + rFC + waste);
+      const totalLabourCost = round2(bLC + rLC);
+      const totalExtraRental = round2(bEx);
+      const netOperatingMargin = round2(totalRevenue - totalFoodCost - totalLabourCost - totalExtraRental);
+      const foodCostPct = totalRevenue > 0 ? round2((totalFoodCost / totalRevenue) * 100) : 0;
+      const labourCostPct = totalRevenue > 0 ? round2((totalLabourCost / totalRevenue) * 100) : 0;
+      return {
+        totalRevenue, banqRevenue: round2(bRev), restRevenue: round2(rRev),
+        banqCosts: round2(bFC + bLC + bEx), restCosts: round2(rFC + rLC + waste),
+        totalFoodCost, totalLabourCost, totalExtraRental, netOperatingMargin,
+        foodCostPct, labourCostPct, primeCostPct: round2(foodCostPct + labourCostPct), activeEventsCount: evs.length
+      };
+    }
+
+    // =========================================================================
+    // PERSISTENCE, DEMO & BACKUP
+    // =========================================================================
+    function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); updateSidebarAlerts(); }
+
+    function loadState() {
+      try {
+        const p = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (p && Array.isArray(p.ingredients)) { state = { ...state, ...p }; return; }
+      } catch (e) {}
+      loadDemoData(false);
+    }
+
+    function loadDemoData(notify = true) {
+      const mon = getMonday(todayStr());
+      state = {
+        suppliers: [
+          { id: 'sup_1', name: 'Macelleria Val d\'Orcia Srl', category: 'Food', phone: '+39 0577 842190', email: 'ordini@valdorciacarni.it', deliveryDays: 'Lun, Gio', paymentTerms: '30 gg FM' },
+          { id: 'sup_2', name: 'Ittica Tirreno Spa', category: 'Food', phone: '+39 0586 410220', email: 'ordini@itticatirreno.it', deliveryDays: 'Mar, Ven', paymentTerms: 'Rimessa Diretta' },
+          { id: 'sup_3', name: 'Ortofrutta & Primizie Bio', category: 'Food', phone: '+39 055 712934', email: 'ordini@primiziebio.it', deliveryDays: 'Lun-Sab', paymentTerms: '15 gg FM' },
+          { id: 'sup_4', name: 'Cantine & Beverage Italia', category: 'Beverage', phone: '+39 030 778120', email: 'horeca@cantineitalia.it', deliveryDays: 'Mer, Ven', paymentTerms: '60 gg FM' },
+          { id: 'sup_5', name: 'Metro Cash & Carry Foodservice', category: 'Food/Dry', phone: '+39 055 302190', email: 'clienti@metro-demo.it', deliveryDays: 'Lun-Sab', paymentTerms: '30 gg' },
+          { id: 'sup_6', name: 'Luxury Banqueting Noleggi', category: 'Noleggi/Lavanderia', phone: '+39 02 9941820', email: 'booking@luxurynoleggi.it', deliveryDays: 'Su Evento', paymentTerms: '50% Acconto' }
+        ],
+        ingredients: [
+          { id: 'ing_filetto', code: 'MP-001', name: 'Filetto di Manzo Scottona', category: 'Carne', supplierId: 'sup_1', uomPurchase: 'kg', uomUse: 'gr', conversionFactor: 1000, priceNet: 34.00, vatPct: 10, wastePct: 15, stock: 14.5, minStock: 8, allergens: [] },
+          { id: 'ing_guancia', code: 'MP-002', name: 'Guancia & Ritagli Manzo', category: 'Carne', supplierId: 'sup_1', uomPurchase: 'kg', uomUse: 'gr', conversionFactor: 1000, priceNet: 12.50, vatPct: 10, wastePct: 10, stock: 12.0, minStock: 5, allergens: [] },
+          { id: 'ing_branzino', code: 'MP-003', name: 'Branzino Fresco Pescato', category: 'Pesce', supplierId: 'sup_2', uomPurchase: 'kg', uomUse: 'gr', conversionFactor: 1000, priceNet: 19.80, vatPct: 10, wastePct: 45, stock: 11.0, minStock: 10, allergens: ['pesce'] },
+          { id: 'ing_gamberi', code: 'MP-004', name: 'Gamberi Rossi di Mazara', category: 'Pesce', supplierId: 'sup_2', uomPurchase: 'kg', uomUse: 'gr', conversionFactor: 1000, priceNet: 42.00, vatPct: 10, wastePct: 35, stock: 6.5, minStock: 5, allergens: ['crostacei'] },
+          { id: 'ing_tartufo', code: 'MP-005', name: 'Tartufo Nero Pregiato', category: 'Ortofrutta', supplierId: 'sup_3', uomPurchase: 'kg', uomUse: 'gr', conversionFactor: 1000, priceNet: 420.00, vatPct: 4, wastePct: 5, stock: 0.35, minStock: 0.6, allergens: [] },
+          { id: 'ing_datterini', code: 'MP-006', name: 'Pomodorini Datterini', category: 'Ortofrutta', supplierId: 'sup_3', uomPurchase: 'kg', uomUse: 'gr', conversionFactor: 1000, priceNet: 4.20, vatPct: 4, wastePct: 8, stock: 16.0, minStock: 6, allergens: [] },
+          { id: 'ing_limoni', code: 'MP-007', name: 'Limoni Costa d\'Amalfi IGP', category: 'Ortofrutta', supplierId: 'sup_3', uomPurchase: 'kg', uomUse: 'gr', conversionFactor: 1000, priceNet: 3.60, vatPct: 4, wastePct: 30, stock: 9.0, minStock: 4, allergens: [] },
+          { id: 'ing_odori', code: 'MP-008', name: 'Sedano Carota Cipolla', category: 'Ortofrutta', supplierId: 'sup_3', uomPurchase: 'kg', uomUse: 'gr', conversionFactor: 1000, priceNet: 2.10, vatPct: 4, wastePct: 15, stock: 22.0, minStock: 8, allergens: ['sedano'] },
+          { id: 'ing_burro', code: 'MP-009', name: 'Burro d\'Alpeggio', category: 'Latticini', supplierId: 'sup_5', uomPurchase: 'kg', uomUse: 'gr', conversionFactor: 1000, priceNet: 11.40, vatPct: 4, wastePct: 0, stock: 10.5, minStock: 5, allergens: ['latte'] },
+          { id: 'ing_parmigiano', code: 'MP-010', name: 'Parmigiano Reggiano 36m', category: 'Latticini', supplierId: 'sup_5', uomPurchase: 'kg', uomUse: 'gr', conversionFactor: 1000, priceNet: 21.50, vatPct: 4, wastePct: 8, stock: 8.2, minStock: 4, allergens: ['latte'] },
+          { id: 'ing_burrata', code: 'MP-011', name: 'Burrata Pugliese', category: 'Latticini', supplierId: 'sup_3', uomPurchase: 'kg', uomUse: 'gr', conversionFactor: 1000, priceNet: 13.80, vatPct: 4, wastePct: 5, stock: 4.0, minStock: 5, allergens: ['latte'] },
+          { id: 'ing_riso', code: 'MP-012', name: 'Riso Carnaroli Invecchiato', category: 'Dry', supplierId: 'sup_5', uomPurchase: 'kg', uomUse: 'gr', conversionFactor: 1000, priceNet: 4.80, vatPct: 4, wastePct: 0, stock: 25.0, minStock: 10, allergens: [] },
+          { id: 'ing_farina', code: 'MP-013', name: 'Farina 00 Pasta Fresca', category: 'Dry', supplierId: 'sup_5', uomPurchase: 'kg', uomUse: 'gr', conversionFactor: 1000, priceNet: 1.45, vatPct: 4, wastePct: 2, stock: 30.0, minStock: 10, allergens: ['glutine'] },
+          { id: 'ing_uova', code: 'MP-014', name: 'Tuorlo d\'Uovo Pastorizzato', category: 'Latticini', supplierId: 'sup_5', uomPurchase: 'lt', uomUse: 'ml', conversionFactor: 1000, priceNet: 5.90, vatPct: 10, wastePct: 0, stock: 8.0, minStock: 4, allergens: ['uova'] },
+          { id: 'ing_olio', code: 'MP-015', name: 'Olio EVO Toscano IGP', category: 'Dry', supplierId: 'sup_3', uomPurchase: 'lt', uomUse: 'ml', conversionFactor: 1000, priceNet: 13.50, vatPct: 4, wastePct: 0, stock: 18.0, minStock: 8, allergens: [] },
+          { id: 'ing_cioccolato', code: 'MP-016', name: 'Cioccolato Fondente 70%', category: 'Dry', supplierId: 'sup_5', uomPurchase: 'kg', uomUse: 'gr', conversionFactor: 1000, priceNet: 18.90, vatPct: 10, wastePct: 0, stock: 7.5, minStock: 4, allergens: ['soia', 'latte'] },
+          { id: 'ing_zucchero', code: 'MP-017', name: 'Zucchero Semolato', category: 'Dry', supplierId: 'sup_5', uomPurchase: 'kg', uomUse: 'gr', conversionFactor: 1000, priceNet: 1.35, vatPct: 10, wastePct: 0, stock: 20.0, minStock: 8, allergens: [] },
+          { id: 'ing_franciacorta', code: 'BV-001', name: 'Franciacorta Satèn DOCG', category: 'Vini/Beverage', supplierId: 'sup_4', uomPurchase: 'pz', uomUse: 'ml', conversionFactor: 750, priceNet: 16.50, vatPct: 22, wastePct: 3, stock: 18.0, minStock: 24, allergens: ['solfiti'] },
+          { id: 'ing_chianti', code: 'BV-002', name: 'Chianti Classico Riserva', category: 'Vini/Beverage', supplierId: 'sup_4', uomPurchase: 'pz', uomUse: 'ml', conversionFactor: 750, priceNet: 12.80, vatPct: 22, wastePct: 3, stock: 48.0, minStock: 24, allergens: ['solfiti'] },
+          { id: 'ing_acqua', code: 'BV-003', name: 'Acqua Vetro 0.75L (Ct 12)', category: 'Vini/Beverage', supplierId: 'sup_4', uomPurchase: 'cartone', uomUse: 'pz', conversionFactor: 12, priceNet: 7.20, vatPct: 22, wastePct: 0, stock: 15.0, minStock: 10, allergens: [] },
+          { id: 'ing_gin', code: 'BV-004', name: 'Gin Botanico 0.70L', category: 'Vini/Beverage', supplierId: 'sup_4', uomPurchase: 'pz', uomUse: 'ml', conversionFactor: 700, priceNet: 26.00, vatPct: 22, wastePct: 2, stock: 9.0, minStock: 6, allergens: [] },
+          { id: 'ing_tonica', code: 'BV-005', name: 'Tonica Premium (Ct 24)', category: 'Vini/Beverage', supplierId: 'sup_4', uomPurchase: 'cartone', uomUse: 'pz', conversionFactor: 24, priceNet: 21.60, vatPct: 22, wastePct: 0, stock: 6.0, minStock: 4, allergens: [] },
+          { id: 'ing_tovaglioli', code: 'CS-001', name: 'Tovaglioli Airlaid (Pz 50)', category: 'Consumabili', supplierId: 'sup_5', uomPurchase: 'cartone', uomUse: 'pz', conversionFactor: 50, priceNet: 8.50, vatPct: 22, wastePct: 0, stock: 12.0, minStock: 5, allergens: [] }
+        ],
+        equipment: [
+          { id: 'eq_tavolo_tondo', code: 'ATT-001', name: 'Tavolo Tondo Ø180 (10 pax)', category: 'Tavoli', type: 'Di Proprietà', supplierId: '', rentalCost: 0, totalQty: 22, replacementCost: 145, status: 'Disponibile' },
+          { id: 'eq_tavolo_imp', code: 'ATT-002', name: 'Tavolo Imperiale 240x100', category: 'Tavoli', type: 'Di Proprietà', supplierId: '', rentalCost: 0, totalQty: 10, replacementCost: 180, status: 'Disponibile' },
+          { id: 'eq_chiavarina', code: 'ATT-003', name: 'Sedia Chiavarina Oro', category: 'Sedie', type: 'A Noleggio', supplierId: 'sup_6', rentalCost: 4.50, totalQty: 260, replacementCost: 48, status: 'Disponibile' },
+          { id: 'eq_tovaglia_330', code: 'ATT-004', name: 'Tovaglia Lino Avorio Ø330', category: 'Tovagliato', type: 'A Noleggio', supplierId: 'sup_6', rentalCost: 13.00, totalQty: 30, replacementCost: 75, status: 'Disponibile' },
+          { id: 'eq_tovagliolo_lino', code: 'ATT-005', name: 'Tovagliolo Lino Avorio', category: 'Tovagliato', type: 'A Noleggio', supplierId: 'sup_6', rentalCost: 1.90, totalQty: 320, replacementCost: 9, status: 'Disponibile' },
+          { id: 'eq_posate', code: 'ATT-006', name: 'Set Posate Ottone (5 pz)', category: 'Posateria', type: 'Di Proprietà', supplierId: '', rentalCost: 0, totalQty: 240, replacementCost: 24, status: 'Disponibile' },
+          { id: 'eq_calici_vino', code: 'ATT-007', name: 'Calice Vino Cristallo', category: 'Cristalleria', type: 'Di Proprietà', supplierId: '', rentalCost: 0, totalQty: 280, replacementCost: 8.5, status: 'Disponibile' },
+          { id: 'eq_flute', code: 'ATT-008', name: 'Flûte Bollicine Cristallo', category: 'Cristalleria', type: 'Di Proprietà', supplierId: '', rentalCost: 0, totalQty: 260, replacementCost: 8.0, status: 'Disponibile' },
+          { id: 'eq_sottopiatto', code: 'ATT-009', name: 'Sottopiatto Vetro Oro', category: 'Porcellane', type: 'Di Proprietà', supplierId: '', rentalCost: 0, totalQty: 220, replacementCost: 16, status: 'Disponibile' },
+          { id: 'eq_piatto_piano', code: 'ATT-010', name: 'Piatto Piano Porcellana Ø28', category: 'Porcellane', type: 'Di Proprietà', supplierId: '', rentalCost: 0, totalQty: 280, replacementCost: 12, status: 'Disponibile' },
+          { id: 'eq_forno_mobile', code: 'ATT-011', name: 'Forno Combi Mobile 10 Teglie', category: 'Attrezzatura cucina mobile', type: 'Di Proprietà', supplierId: '', rentalCost: 0, totalQty: 2, replacementCost: 4200, status: 'Disponibile' },
+          { id: 'eq_gazebo', code: 'ATT-012', name: 'Gazebo Catering 5x5m', category: 'Allestimenti', type: 'A Noleggio', supplierId: 'sup_6', rentalCost: 160.00, totalQty: 4, replacementCost: 850, status: 'Disponibile' }
+        ],
+        recipes: [
+          { id: 'rec_semi_pasta', code: 'SL-001', name: 'Pasta Fresca all\'Uovo (Impasto)', category: 'Semilavorato', isSemiFinished: true, yieldQty: 1500, yieldUom: 'gr', sellingPriceNet: 0, vatPct: 10, notes: 'Impastare 12 min, riposo 1h.', items: [{ type: 'ingredient', refId: 'ing_farina', qty: 1000 }, { type: 'ingredient', refId: 'ing_uova', qty: 520 }, { type: 'ingredient', refId: 'ing_olio', qty: 30 }] },
+          { id: 'rec_semi_fondo', code: 'SL-002', name: 'Fondo Bruno di Manzo', category: 'Semilavorato', isSemiFinished: true, yieldQty: 1000, yieldUom: 'ml', sellingPriceNet: 0, vatPct: 10, notes: 'Tostare carni e verdure, ridurre 8h.', items: [{ type: 'ingredient', refId: 'ing_guancia', qty: 1500 }, { type: 'ingredient', refId: 'ing_odori', qty: 400 }, { type: 'ingredient', refId: 'ing_chianti', qty: 300 }] },
+          { id: 'rec_crudo_gamberi', code: 'ANT-01', name: 'Crudo Gamberi Rossi & Burrata', category: 'Antipasti', isSemiFinished: false, yieldQty: 1, yieldUom: 'pz', sellingPriceNet: 22.00, vatPct: 10, notes: 'Abbattuto -20°C 24h.', items: [{ type: 'ingredient', refId: 'ing_gamberi', qty: 110 }, { type: 'ingredient', refId: 'ing_burrata', qty: 65 }, { type: 'ingredient', refId: 'ing_olio', qty: 15 }, { type: 'ingredient', refId: 'ing_limoni', qty: 20 }] },
+          { id: 'rec_risotto_tartufo', code: 'PRI-01', name: 'Risotto Carnaroli al Tartufo Nero', category: 'Primi Piatti', isSemiFinished: false, yieldQty: 1, yieldUom: 'pz', sellingPriceNet: 24.00, vatPct: 10, notes: 'Mantecare con burro ghiacciato.', items: [{ type: 'ingredient', refId: 'ing_riso', qty: 85 }, { type: 'ingredient', refId: 'ing_burro', qty: 30 }, { type: 'ingredient', refId: 'ing_parmigiano', qty: 30 }, { type: 'ingredient', refId: 'ing_tartufo', qty: 8 }] },
+          { id: 'rec_tagliolini_tartufo', code: 'PRI-02', name: 'Tagliolini Freschi al Tartufo', category: 'Primi Piatti', isSemiFinished: false, yieldQty: 1, yieldUom: 'pz', sellingPriceNet: 25.00, vatPct: 10, notes: 'Cottura 90 sec.', items: [{ type: 'recipe', refId: 'rec_semi_pasta', qty: 110 }, { type: 'ingredient', refId: 'ing_burro', qty: 35 }, { type: 'ingredient', refId: 'ing_parmigiano', qty: 25 }, { type: 'ingredient', refId: 'ing_tartufo', qty: 8 }] },
+          { id: 'rec_filetto', code: 'SEC-01', name: 'Filetto di Manzo al Chianti', category: 'Secondi Piatti', isSemiFinished: false, yieldQty: 1, yieldUom: 'pz', sellingPriceNet: 32.00, vatPct: 10, notes: '54°C al cuore, nappare fondo bruno.', items: [{ type: 'ingredient', refId: 'ing_filetto', qty: 190 }, { type: 'recipe', refId: 'rec_semi_fondo', qty: 60 }, { type: 'ingredient', refId: 'ing_burro', qty: 15 }, { type: 'ingredient', refId: 'ing_olio', qty: 10 }] },
+          { id: 'rec_branzino', code: 'SEC-02', name: 'Branzino Scottato & Burrata', category: 'Secondi Piatti', isSemiFinished: false, yieldQty: 1, yieldUom: 'pz', sellingPriceNet: 26.00, vatPct: 10, notes: 'Pelle croccante.', items: [{ type: 'ingredient', refId: 'ing_branzino', qty: 170 }, { type: 'ingredient', refId: 'ing_datterini', qty: 90 }, { type: 'ingredient', refId: 'ing_burrata', qty: 50 }, { type: 'ingredient', refId: 'ing_olio', qty: 15 }] },
+          { id: 'rec_tortino', code: 'DOL-01', name: 'Tortino Cioccolato 70% Fondente', category: 'Dessert', isSemiFinished: false, yieldQty: 1, yieldUom: 'pz', sellingPriceNet: 11.00, vatPct: 10, notes: 'Forno 9 min 190°C.', items: [{ type: 'ingredient', refId: 'ing_cioccolato', qty: 65 }, { type: 'ingredient', refId: 'ing_burro', qty: 45 }, { type: 'ingredient', refId: 'ing_uova', qty: 60 }, { type: 'ingredient', refId: 'ing_zucchero', qty: 35 }, { type: 'ingredient', refId: 'ing_farina', qty: 20 }] },
+          { id: 'rec_calice_franciacorta', code: 'DRK-01', name: 'Calice Franciacorta Satèn', category: 'Beverage & Drink', isSemiFinished: false, yieldQty: 1, yieldUom: 'pz', sellingPriceNet: 10.00, vatPct: 22, notes: 'Servire 6-8°C.', items: [{ type: 'ingredient', refId: 'ing_franciacorta', qty: 125 }] },
+          { id: 'rec_vino_chianti', code: 'DRK-02', name: 'Servizio Chianti Riserva & Acqua', category: 'Beverage & Drink', isSemiFinished: false, yieldQty: 1, yieldUom: 'pz', sellingPriceNet: 12.00, vatPct: 22, notes: '250ml vino + acqua.', items: [{ type: 'ingredient', refId: 'ing_chianti', qty: 250 }, { type: 'ingredient', refId: 'ing_acqua', qty: 1 }] },
+          { id: 'rec_gin_tonic', code: 'DRK-03', name: 'Gin Tonic Botanico Premium', category: 'Beverage & Drink', isSemiFinished: false, yieldQty: 1, yieldUom: 'pz', sellingPriceNet: 13.00, vatPct: 22, notes: '50ml Gin + Tonica.', items: [{ type: 'ingredient', refId: 'ing_gin', qty: 50 }, { type: 'ingredient', refId: 'ing_tonica', qty: 1 }, { type: 'ingredient', refId: 'ing_limoni', qty: 15 }] }
+        ],
+        packages: [
+          { id: 'pkg_gold', name: 'Menu Matrimonio Eleganza (Gold)', description: 'Aperitivo Franciacorta, Crudo Gamberi, Risotto Tartufo, Filetto Chianti, Tortino e Vini.', adultPriceNet: 120, childPriceNet: 50, childCostPct: 45, recipeIds: ['rec_calice_franciacorta', 'rec_crudo_gamberi', 'rec_risotto_tartufo', 'rec_filetto', 'rec_tortino', 'rec_vino_chianti'] },
+          { id: 'pkg_base', name: 'Menu Banqueting Tradizione (Silver)', description: 'Aperitivo Franciacorta, Tagliolini Tartufo, Branzino, Tortino e Vini.', adultPriceNet: 92, childPriceNet: 40, childCostPct: 45, recipeIds: ['rec_calice_franciacorta', 'rec_tagliolini_tartufo', 'rec_branzino', 'rec_tortino', 'rec_vino_chianti'] },
+          { id: 'pkg_gala', name: 'Menu Gala Aziendale Smart', description: 'Risotto Tartufo, Filetto Chianti, Tortino e Vino.', adultPriceNet: 78, childPriceNet: 35, childCostPct: 50, recipeIds: ['rec_risotto_tartufo', 'rec_filetto', 'rec_tortino', 'rec_vino_chianti'] }
+        ],
+        staff: [
+          { id: 'stf_1', name: 'Chef Marco Bellini', role: 'Executive Chef', contract: 'Indeterminato', hourlyCost: 26, phone: '335 8129011' },
+          { id: 'stf_2', name: 'Elena Conti', role: 'Sous Chef', contract: 'Indeterminato', hourlyCost: 20, phone: '347 9120341' },
+          { id: 'stf_3', name: 'Lorenzo Valli', role: 'Maître di Sala', contract: 'Indeterminato', hourlyCost: 22, phone: '338 4412900' },
+          { id: 'stf_4', name: 'Giulia Ferri', role: 'Chef de Rang', contract: 'Determinato', hourlyCost: 15.5, phone: '340 1129832' },
+          { id: 'stf_5', name: 'Matteo Rinaldi', role: 'Cameriere Extra', contract: 'Extra / Chiamata', hourlyCost: 16, phone: '349 7721094' },
+          { id: 'stf_6', name: 'Sofia Moretti', role: 'Cameriere Extra', contract: 'Extra / Chiamata', hourlyCost: 16, phone: '328 6612098' },
+          { id: 'stf_7', name: 'Davide Neri', role: 'Barman Mixologist', contract: 'Extra / Chiamata', hourlyCost: 19, phone: '333 9081234' }
+        ],
+        events: [
+          {
+            id: 'ev_rossi_bianchi', name: 'Matrimonio Rossi & Bianchi', type: 'Matrimonio', status: 'Confermato',
+            date: todayStr(4), timeSlot: '17:30 - 01:00', locationType: 'Esterna', locationName: 'Villa Belvedere (Fiesole)',
+            clientName: 'Alessandro Rossi & Chiara Bianchi', clientPhone: '+39 348 9120455',
+            adults: 110, children: 12, staffMeals: 8, packageId: 'pkg_gold',
+            dietaryNotes: '2 Celiaci (Tavolo 1), 1 Vegano (Tavolo 3), 1 Allergico Crostacei (Tavolo 2), 3 Seggioloni.',
+            extras: [
+              { id: 'ex_1', name: 'Open Bar Serale Premium (3h)', supplierCost: 680, clientPrice: 1650 },
+              { id: 'ex_2', name: 'Allestimento Floreale & Tableau', supplierCost: 1100, clientPrice: 1900 },
+              { id: 'ex_3', name: 'Service Audio, Luci & DJ', supplierCost: 550, clientPrice: 950 }
+            ],
+            equipmentList: [
+              { equipmentId: 'eq_tavolo_tondo', qty: 12 }, { equipmentId: 'eq_tavolo_imp', qty: 1 }, { equipmentId: 'eq_chiavarina', qty: 122 },
+              { equipmentId: 'eq_tovaglia_330', qty: 14 }, { equipmentId: 'eq_tovagliolo_lino', qty: 130 }, { equipmentId: 'eq_posate', qty: 130 },
+              { equipmentId: 'eq_calici_vino', qty: 140 }, { equipmentId: 'eq_flute', qty: 140 }, { equipmentId: 'eq_sottopiatto', qty: 122 },
+              { equipmentId: 'eq_piatto_piano', qty: 240 }, { equipmentId: 'eq_forno_mobile', qty: 2 }, { equipmentId: 'eq_gazebo', qty: 2 }
+            ],
+            tables: [
+              { id: 'tb_sposi', name: 'Tavolo Sposi', shape: 'Sposi', seats: 2, assigned: 2, notes: 'Centro giardino', x: 250, y: 20 },
+              { id: 'tb_1', name: 'Tavolo 1 - Fam. Rossi', shape: 'Tondo', seats: 10, assigned: 10, notes: '2 Celiaci, 1 Seggiolone', x: 40, y: 120 },
+              { id: 'tb_2', name: 'Tavolo 2 - Fam. Bianchi', shape: 'Tondo', seats: 10, assigned: 10, notes: '1 Allergia Crostacei', x: 250, y: 130 },
+              { id: 'tb_3', name: 'Tavolo 3 - Amici Uni', shape: 'Tondo', seats: 10, assigned: 10, notes: '1 Vegano', x: 460, y: 120 },
+              { id: 'tb_4', name: 'Tavolo 4 - Colleghi', shape: 'Tondo', seats: 10, assigned: 10, notes: '', x: 40, y: 265 },
+              { id: 'tb_5', name: 'Tavolo 5 - Amici Storici', shape: 'Tondo', seats: 10, assigned: 10, notes: '', x: 250, y: 265 },
+              { id: 'tb_6', name: 'Tavolo 6 - Bimbi & Zii', shape: 'Imperiale', seats: 20, assigned: 20, notes: '2 Seggioloni, Menu Bimbi x12', x: 440, y: 265 }
+            ],
+            staffAssigned: [{ staffId: 'stf_1', hours: 10 }, { staffId: 'stf_2', hours: 10 }, { staffId: 'stf_3', hours: 10 }, { staffId: 'stf_4', hours: 9 }, { staffId: 'stf_5', hours: 9 }, { staffId: 'stf_6', hours: 9 }, { staffId: 'stf_7', hours: 6 }],
+            payments: [{ id: 'pay_1', date: todayStr(-45), label: 'Caparra Confirmatoria', amount: 5000 }, { id: 'pay_2', date: todayStr(-10), label: 'Secondo Acconto', amount: 4500 }],
+            timeline: [
+              { time: '15:30', activity: 'Scarico attrezzature e mise en place' }, { time: '17:30', activity: 'Arrivo ospiti e aperitivo giardino' },
+              { time: '19:00', activity: 'Arrivo Sposi e brindisi' }, { time: '20:00', activity: 'Cena placée' },
+              { time: '22:45', activity: 'Taglio torta & Dessert' }, { time: '23:15', activity: 'Open Bar & DJ Set' }
+            ]
+          },
+          {
+            id: 'ev_techitalia', name: 'Gala Aziendale TechItalia Spa', type: 'Aziendale', status: 'Prova Menu',
+            date: todayStr(18), timeSlot: '19:30 - 23:30', locationType: 'Interna', locationName: 'Sala Cristalli',
+            clientName: 'Dott.ssa Laura Mazzini', clientPhone: '+39 02 8841200',
+            adults: 80, children: 0, staffMeals: 4, packageId: 'pkg_gala', dietaryNotes: '3 Vegetariani, 1 Lattosio.',
+            extras: [{ id: 'ex_t1', name: 'Audio/Video Keynote', supplierCost: 220, clientPrice: 550 }],
+            equipmentList: [{ equipmentId: 'eq_tavolo_tondo', qty: 8 }, { equipmentId: 'eq_chiavarina', qty: 80 }],
+            tables: [{ id: 'tbt_1', name: 'Tavolo Direzione', shape: 'Tondo', seats: 10, assigned: 10, notes: 'VIP', x: 180, y: 60 }],
+            staffAssigned: [{ staffId: 'stf_1', hours: 7 }, { staffId: 'stf_3', hours: 7 }, { staffId: 'stf_4', hours: 7 }],
+            payments: [{ id: 'pay_t1', date: todayStr(-5), label: 'Acconto blocco data', amount: 1500 }],
+            timeline: [{ time: '19:30', activity: 'Welcome drink' }, { time: '20:30', activity: 'Cena placée' }]
+          },
+          {
+            id: 'ev_battesimo', name: 'Battesimo Sofia Conti', type: 'Battesimo', status: 'Preventivo',
+            date: todayStr(32), timeSlot: '12:30 - 17:30', locationType: 'Interna', locationName: 'Veranda Giardino',
+            clientName: 'Federico Conti', clientPhone: '+39 339 4418820', adults: 42, children: 10, staffMeals: 2,
+            packageId: 'pkg_base', dietaryNotes: 'Menu bambini x10.', extras: [{ id: 'ex_b1', name: 'Confettata', supplierCost: 180, clientPrice: 420 }],
+            equipmentList: [], tables: [], staffAssigned: [{ staffId: 'stf_2', hours: 6 }, { staffId: 'stf_3', hours: 6 }], payments: [], timeline: []
+          },
+          {
+            id: 'ev_ferrari_russo', name: 'Matrimonio Ferrari & Russo', type: 'Matrimonio', status: 'Concluso',
+            date: todayStr(-10), timeSlot: '18:00 - 01:00', locationType: 'Esterna', locationName: 'Tenuta San Lorenzo',
+            clientName: 'Matteo Ferrari & Giulia Russo', clientPhone: '+39 347 2291033', adults: 90, children: 8, staffMeals: 6,
+            packageId: 'pkg_base', dietaryNotes: '2 Celiaci.', extras: [{ id: 'ex_f1', name: 'Open Bar Base', supplierCost: 420, clientPrice: 1050 }],
+            equipmentList: [{ equipmentId: 'eq_tavolo_tondo', qty: 10 }, { equipmentId: 'eq_chiavarina', qty: 98 }],
+            tables: [], staffAssigned: [{ staffId: 'stf_1', hours: 9 }, { staffId: 'stf_3', hours: 9 }, { staffId: 'stf_4', hours: 9 }, { staffId: 'stf_5', hours: 9 }],
+            payments: [{ id: 'pay_f1', date: todayStr(-40), label: 'Caparra', amount: 3000 }, { id: 'pay_f2', date: todayStr(-10), label: 'Saldo', amount: 6650 }], timeline: []
+          }
+        ],
+        shifts: [
+          { id: 'sh_1', staffId: 'stf_1', date: mon, hours: 8, area: 'Cucina Ristorante' },
+          { id: 'sh_2', staffId: 'stf_2', date: addDays(mon, 1), hours: 8, area: 'Cucina Ristorante' },
+          { id: 'sh_3', staffId: 'stf_3', date: addDays(mon, 2), hours: 7, area: 'Sala Ristorante' },
+          { id: 'sh_4', staffId: 'stf_4', date: addDays(mon, 2), hours: 7, area: 'Sala Ristorante' },
+          { id: 'sh_5', staffId: 'stf_1', date: addDays(mon, 3), hours: 8, area: 'Cucina Ristorante' },
+          { id: 'sh_6', staffId: 'stf_4', date: addDays(mon, 4), hours: 8, area: 'Sala Ristorante' }
+        ],
+        restaurantSales: [
+          { id: 'rs_1', date: todayStr(-5), recipeId: 'rec_risotto_tartufo', qty: 88 },
+          { id: 'rs_2', date: todayStr(-4), recipeId: 'rec_filetto', qty: 76 },
+          { id: 'rs_3', date: todayStr(-3), recipeId: 'rec_tagliolini_tartufo', qty: 42 },
+          { id: 'rs_4', date: todayStr(-3), recipeId: 'rec_branzino', qty: 34 },
+          { id: 'rs_5', date: todayStr(-2), recipeId: 'rec_crudo_gamberi', qty: 68 },
+          { id: 'rs_6', date: todayStr(-2), recipeId: 'rec_tortino', qty: 95 },
+          { id: 'rs_7', date: todayStr(-1), recipeId: 'rec_calice_franciacorta', qty: 112 },
+          { id: 'rs_8', date: todayStr(-1), recipeId: 'rec_gin_tonic', qty: 38 }
+        ],
+        movements: [
+          { id: 'mv_1', date: todayStr(-6), type: 'CARICO', refDoc: 'DDT-2026/412', ingredientId: 'ing_filetto', qty: 10, unitPrice: 34.00, totalValue: 340.00, note: 'Carico Macelleria' },
+          { id: 'mv_2', date: todayStr(-4), type: 'CARICO', refDoc: 'DDT-2026/439', ingredientId: 'ing_riso', qty: 20, unitPrice: 4.80, totalValue: 96.00, note: 'Scorta Riso' },
+          { id: 'mv_3', date: todayStr(-2), type: 'SCARTO', refDoc: 'Scarto Frigo', ingredientId: 'ing_burrata', qty: 1.0, unitPrice: 13.80, totalValue: 13.80, note: 'Scadenza' }
+        ]
+      };
+      saveState();
+      if (notify) { showToast('Dati Demo caricati!', 'success'); renderApp(); }
+    }
+
+    function loadDemoDataConfirm() { if (confirm('Ricaricare i dati Demo? I dati attuali verranno sostituiti.')) loadDemoData(true); }
+    function resetAllDataConfirm() {
+      if (confirm('Azzerare completamente tutti i dati?')) {
+        state = { ingredients: [], equipment: [], recipes: [], packages: [], events: [], suppliers: [], staff: [], shifts: [], movements: [], restaurantSales: [] };
+        ui.activeEventId = null; saveState(); showToast('Dati azzerati.', 'warning'); renderApp();
+      }
+    }
+
+    function exportJSONBackup() {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' }));
+      a.download = `gustopro_backup_${todayStr()}.json`; a.click();
+      showToast('Backup JSON esportato!', 'success');
+    }
+
+    function importJSONBackup(ev) {
+      const f = ev.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = e => {
+        try {
+          const p = JSON.parse(e.target.result);
+          if (!p || !Array.isArray(p.ingredients)) throw new Error('JSON non valido');
+          state = { ingredients: p.ingredients || [], equipment: p.equipment || [], recipes: p.recipes || [], packages: p.packages || [], events: p.events || [], suppliers: p.suppliers || [], staff: p.staff || [], shifts: p.shifts || [], movements: p.movements || [], restaurantSales: p.restaurantSales || [] };
+          saveState(); renderApp(); showToast('Backup JSON importato!', 'success');
+        } catch (err) { showToast('Errore: ' + err.message, 'error'); }
+        ev.target.value = '';
+      };
+      r.readAsText(f);
+    }
+
+    function toggleCsvMenu() { document.getElementById('csv-dropdown').classList.toggle('hidden'); }
+    document.addEventListener('click', e => { const w = document.getElementById('csv-dropdown-wrapper'), d = document.getElementById('csv-dropdown'); if (w && d && !w.contains(e.target)) d.classList.add('hidden'); });
+
+    function downloadCSV(name, headers, rows) {
+      const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const csv = '\uFEFF' + [headers.map(q).join(';'), ...rows.map(r => r.map(q).join(';'))].join('\r\n');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+      a.download = name; a.click();
+      showToast(`Esportato ${name}`, 'success');
+    }
+
+    function exportCSV(t) {
+      document.getElementById('csv-dropdown').classList.add('hidden');
+      if (t === 'ingredients') downloadCSV(`materie_prime_${todayStr()}.csv`, ['Codice','Nome','Categoria','Fornitore','UdM Acq','UdM Uso','Conv','Prezzo','IVA%','Scarto%','Costo Netto','Giacenza','Min','Allergeni'], state.ingredients.map(i => [i.code,i.name,i.category,state.suppliers.find(s=>s.id===i.supplierId)?.name||'',i.uomPurchase,i.uomUse,i.conversionFactor,fmtNum(i.priceNet),i.vatPct,i.wastePct,fmtNum(getIngUsablePurchaseCost(i)),fmtNum(i.stock),fmtNum(i.minStock),(i.allergens||[]).join(', ')]));
+      else if (t === 'equipment') downloadCSV(`attrezzature_${todayStr()}.csv`, ['Codice','Nome','Cat','Tipo','Noleggio','Qta','Riacquisto','Stato'], state.equipment.map(e => [e.code,e.name,e.category,e.type,fmtNum(e.rentalCost),e.totalQty,fmtNum(e.replacementCost),e.status]));
+      else if (t === 'recipes') downloadCSV(`ricettario_${todayStr()}.csv`, ['Codice','Nome','Cat','SL','Costo','Prezzo','FC%','Margine','Allergeni'], state.recipes.map(r => { const a = getRecipeAnalysis(r.id); return [r.code,r.name,r.category,r.isSemiFinished?'Si':'No',fmtNum(a.totalCost),fmtNum(r.sellingPriceNet),fmtNum(a.foodCostPct),fmtNum(a.margin),a.allergens.join(', ')]; }));
+      else if (t === 'events') downloadCSV(`eventi_${todayStr()}.csv`, ['Evento','Tipo','Stato','Data','Location','Adulti','Bambini','Ricavo','Costo F&B','Staff','Noleggi/Extra','Utile','Margine%','Saldo'], state.events.map(e => { const f = getEventFinancials(e); return [e.name,e.type,e.status,e.date,e.locationName,e.adults,e.children,fmtNum(f.totalRevenue),fmtNum(f.foodCost),fmtNum(f.staffCost),fmtNum(f.rentalCost+f.extrasCost),fmtNum(f.netProfit),fmtNum(f.netMarginPct),fmtNum(f.balanceDue)]; }));
+      else if (t === 'menu_eng') { const d = getMenuEngineeringData(); downloadCSV(`menu_engineering_${todayStr()}.csv`, ['Piatto','Cat','Qta','Costo','Prezzo','Margine Unit','Margine Tot','Classe'], d.items.map(i => [i.name,i.category,i.qtySold,fmtNum(i.cost),fmtNum(i.price),fmtNum(i.margin),fmtNum(i.totalMargin),i.classification])); }
+    }
+
+    // =========================================================================
+    // NAVIGATION & RENDER
+    // =========================================================================
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('-translate-x-full');
+      document.getElementById('sidebar-overlay').classList.toggle('hidden');
+    }
+    function setActiveTab(id) {
+      ui.activeTab = id;
+      if (window.innerWidth < 1024) { document.getElementById('sidebar').classList.add('-translate-x-full'); document.getElementById('sidebar-overlay').classList.add('hidden'); }
+      renderApp();
+    }
+    function updateSidebarAlerts() {
+      const low = state.ingredients.filter(i => Number(i.stock) < Number(i.minStock)).length;
+      const evs = state.events.filter(e => e.status === 'Confermato' && e.date >= todayStr()).length;
+      const el = document.getElementById('sidebar-alerts-summary');
+      if (el) el.innerHTML = `${low} scorte sotto minimo · ${evs} eventi conf.`;
+    }
+    function renderApp() {
+      document.getElementById('sidebar-nav').innerHTML = NAV_ITEMS.map(it => {
+        const a = ui.activeTab === it.id;
+        return `<button onclick="setActiveTab('${it.id}')" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition ${a ? 'bg-emerald-600 text-white shadow' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}"><i data-lucide="${it.icon}" class="w-4 h-4 shrink-0"></i><span class="truncate">${it.label}</span></button>`;
+      }).join('');
+      const meta = NAV_ITEMS.find(n => n.id === ui.activeTab) || NAV_ITEMS[0];
+      document.getElementById('page-title').textContent = meta.label;
+      document.getElementById('page-subtitle').textContent = meta.sub;
+      updateSidebarAlerts();
+
+      Object.values(chartInstances).forEach(c => c?.destroy?.()); chartInstances = {};
+      const m = document.getElementById('main-content');
+      if (ui.activeTab === 'dashboard') { m.innerHTML = renderDashboard(); initDashboardCharts(); }
+      else if (ui.activeTab === 'ingredients') m.innerHTML = renderIngredients();
+      else if (ui.activeTab === 'equipment') m.innerHTML = renderEquipment();
+      else if (ui.activeTab === 'recipes') m.innerHTML = renderRecipesAndPackages();
+      else if (ui.activeTab === 'events') m.innerHTML = renderEvents();
+      else if (ui.activeTab === 'inventory') m.innerHTML = renderInventory();
+      else if (ui.activeTab === 'staff') m.innerHTML = renderStaffAndSuppliers();
+      else if (ui.activeTab === 'menu-engineering') { m.innerHTML = renderMenuEngineering(); initMenuEngChart(); }
+      lucide.createIcons();
+    }
+
+    // =========================================================================
+    // MODULO 1: DASHBOARD
+    // =========================================================================
+    function renderDashboard() {
+      const m = getDashboardMetrics(ui.dashboardFilter);
+      const low = state.ingredients.filter(i => Number(i.stock) < Number(i.minStock));
+      const up = state.events.filter(e => e.status !== 'Annullato' && e.status !== 'Concluso').sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      const cFC = m.foodCostPct <= 30 ? 'text-emerald-600' : (m.foodCostPct <= 36 ? 'text-amber-600' : 'text-rose-600');
+      const cLC = m.labourCostPct <= 30 ? 'text-emerald-600' : (m.labourCostPct <= 36 ? 'text-amber-600' : 'text-rose-600');
+      const cPC = m.primeCostPct <= 60 ? 'text-emerald-600' : (m.primeCostPct <= 68 ? 'text-amber-600' : 'text-rose-600');
+      return `
+        <div class="space-y-6">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <span class="text-xs text-slate-500">Ricavi netti IVA escl. · ${m.activeEventsCount} eventi confermati/conclusi + vendite sala</span>
+            <div class="inline-flex rounded-xl bg-white border border-slate-200 p-1">
+              <button onclick="ui.dashboardFilter='all'; renderApp()" class="px-3 py-1.5 rounded-lg text-xs font-semibold ${ui.dashboardFilter === 'all' ? 'bg-slate-900 text-white' : 'text-slate-600'}">Tutti i Periodi</button>
+              <button onclick="ui.dashboardFilter='month'; renderApp()" class="px-3 py-1.5 rounded-lg text-xs font-semibold ${ui.dashboardFilter === 'month' ? 'bg-slate-900 text-white' : 'text-slate-600'}">Mese Corrente</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+            <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm"><div class="text-xs font-semibold uppercase text-slate-500">Fatturato Totale</div><div class="text-2xl font-extrabold mt-2">${fmtEuro(m.totalRevenue)}</div><div class="text-[11px] text-slate-500 mt-1 flex justify-between"><span>Banq: ${fmtEuro(m.banqRevenue)}</span><span>Sala: ${fmtEuro(m.restRevenue)}</span></div></div>
+            <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm"><div class="text-xs font-semibold uppercase text-slate-500">F&B Cost Reale %</div><div class="text-2xl font-extrabold mt-2 ${cFC}">${fmtNum(m.foodCostPct, 1)}%</div><div class="text-[11px] text-slate-500 mt-1">MP + Scarti: <strong>${fmtEuro(m.totalFoodCost)}</strong></div></div>
+            <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm"><div class="text-xs font-semibold uppercase text-slate-500">Labour Cost %</div><div class="text-2xl font-extrabold mt-2 ${cLC}">${fmtNum(m.labourCostPct, 1)}%</div><div class="text-[11px] text-slate-500 mt-1">Personale: <strong>${fmtEuro(m.totalLabourCost)}</strong></div></div>
+            <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm"><div class="text-xs font-semibold uppercase text-slate-500">Prime Cost %</div><div class="text-2xl font-extrabold mt-2 ${cPC}">${fmtNum(m.primeCostPct, 1)}%</div><div class="text-[11px] text-slate-500 mt-1">Target ideale: &lt; 62%</div></div>
+            <div class="bg-slate-900 text-white rounded-2xl p-5 shadow-lg"><div class="text-xs font-semibold uppercase text-emerald-300">Margine Operativo Netto</div><div class="text-2xl font-extrabold mt-2">${fmtEuro(m.netOperatingMargin)}</div><div class="text-[11px] text-slate-300 mt-1">Incidenza: ${m.totalRevenue > 0 ? fmtNum((m.netOperatingMargin / m.totalRevenue) * 100, 1) : '0,0'}%</div></div>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm"><h2 class="text-sm font-bold mb-1">Fatturato vs Costi Operativi</h2><p class="text-xs text-slate-500 mb-3">Ristorante vs Banqueting</p><div class="h-64"><canvas id="chart-rev-vs-cost"></canvas></div></div>
+            <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm"><h2 class="text-sm font-bold mb-1">Ripartizione Costi & Utile</h2><p class="text-xs text-slate-500 mb-3">Struttura economica globale</p><div class="h-64"><canvas id="chart-cost-breakdown"></canvas></div></div>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div class="px-5 py-3.5 border-b border-slate-100 flex justify-between items-center"><h2 class="text-sm font-bold">Prossimi Eventi & Pagamenti</h2><button onclick="setActiveTab('events')" class="text-xs font-semibold text-emerald-600">Vedi tutti &rarr;</button></div>
+              <div class="overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-slate-50 text-slate-500 uppercase text-[11px]"><tr><th class="px-4 py-2.5">Data</th><th class="px-4 py-2.5">Evento</th><th class="px-4 py-2.5">Stato</th><th class="px-4 py-2.5 text-right">Totale</th><th class="px-4 py-2.5 text-right">Incassato</th><th class="px-4 py-2.5 text-right">Saldo</th></tr></thead>
+              <tbody class="divide-y divide-slate-100">${up.map(ev => { const f = getEventFinancials(ev); return `<tr class="hover:bg-slate-50 cursor-pointer" onclick="openEventDetail('${ev.id}')"><td class="px-4 py-2.5 font-medium">${fmtDate(ev.date)}</td><td class="px-4 py-2.5 font-semibold">${esc(ev.name)}</td><td class="px-4 py-2.5">${ev.status}</td><td class="px-4 py-2.5 text-right">${fmtEuro(f.totalRevenue)}</td><td class="px-4 py-2.5 text-right text-emerald-600">${fmtEuro(f.paidAmount)}</td><td class="px-4 py-2.5 text-right font-bold text-amber-600">${fmtEuro(f.balanceDue)}</td></tr>`; }).join('') || '<tr><td colspan="6" class="p-6 text-center text-slate-400">Nessun evento imminente.</td></tr>'}</tbody></table></div>
+            </div>
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+              <div class="px-5 py-3.5 border-b border-slate-100 bg-rose-50/40 flex justify-between items-center"><span class="text-sm font-bold text-slate-900">Alert Scorte Sotto Minimo</span><span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-xs font-bold">${low.length}</span></div>
+              <div class="p-4 flex-1 overflow-y-auto max-h-64 space-y-2">${low.map(i => `<div class="flex justify-between items-center p-2 rounded-xl bg-rose-50/60 border border-rose-100 text-xs"><div><div class="font-bold">${esc(i.name)}</div><div class="text-[11px] text-slate-500">Min: ${fmtNum(i.minStock)} ${i.uomPurchase}</div></div><span class="px-2 py-0.5 rounded bg-rose-600 text-white font-bold">${fmtNum(i.stock)} ${i.uomPurchase}</span></div>`).join('') || '<div class="text-center py-6 text-xs text-emerald-600">Scorte regolari!</div>'}</div>
+              <div class="p-3 border-t border-slate-100 bg-slate-50"><button onclick="ui.inventorySubTab='needs'; setActiveTab('inventory')" class="w-full py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold">Genera Ordine Fabbisogno 7gg &rarr;</button></div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function initDashboardCharts() {
+      const m = getDashboardMetrics(ui.dashboardFilter);
+      const c1 = document.getElementById('chart-rev-vs-cost');
+      if (c1) chartInstances.rev = new Chart(c1, { type: 'bar', data: { labels: ['Ristorante À La Carte', 'Banqueting & Matrimoni'], datasets: [{ label: 'Fatturato Netto (€)', data: [m.restRevenue, m.banqRevenue], backgroundColor: '#10b981', borderRadius: 8 }, { label: 'Costi Operativi (€)', data: [m.restCosts, m.banqCosts], backgroundColor: '#f59e0b', borderRadius: 8 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } } });
+      const c2 = document.getElementById('chart-cost-breakdown');
+      if (c2) chartInstances.brk = new Chart(c2, { type: 'doughnut', data: { labels: ['Materie Prime', 'Personale', 'Noleggi/Extra', 'Utile Netto'], datasets: [{ data: [m.totalFoodCost, m.totalLabourCost, m.totalExtraRental, Math.max(0, m.netOperatingMargin)], backgroundColor: ['#f59e0b', '#334155', '#64748b', '#10b981'], borderWidth: 2, borderColor: '#fff' }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } } });
+    }
+
+    // =========================================================================
+    // MODULO 2: MATERIE PRIME F&B
+    // =========================================================================
+    function renderIngredients() {
+      const s = ui.ingSearch.toLowerCase();
+      const filtered = state.ingredients.filter(i => (ui.ingCategory === 'Tutte' || i.category === ui.ingCategory) && (!s || i.name.toLowerCase().includes(s) || i.code.toLowerCase().includes(s)));
+      return `
+        <div class="space-y-5">
+          <div class="bg-white rounded-2xl p-4 border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap gap-2.5 flex-1">
+              <input type="text" value="${esc(ui.ingSearch)}" oninput="ui.ingSearch=this.value; renderApp()" placeholder="Cerca codice o articolo..." class="px-3 py-2 text-xs rounded-xl border border-slate-200 w-60" />
+              <select onchange="ui.ingCategory=this.value; renderApp()" class="px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white"><option value="Tutte">Tutte le categorie</option>${ING_CATS.map(c => `<option value="${c}" ${ui.ingCategory === c ? 'selected' : ''}>${c}</option>`).join('')}</select>
+            </div>
+            <button onclick="openIngredientModal()" class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-semibold">+ Nuova Materia Prima</button>
+          </div>
+          <div class="bg-white rounded-2xl border border-slate-200 overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 uppercase text-[11px] border-b border-slate-200"><tr><th class="px-4 py-3">Articolo</th><th class="px-4 py-3">Cat./Fornitore</th><th class="px-4 py-3">UdM</th><th class="px-4 py-3 text-right">Prezzo</th><th class="px-4 py-3 text-right">Scarto</th><th class="px-4 py-3 text-right">Costo Reale Netto</th><th class="px-4 py-3 text-right">Giacenza</th><th class="px-4 py-3">Allergeni</th><th class="px-4 py-3 text-right">Azioni</th></tr></thead>
+              <tbody class="divide-y divide-slate-100">${filtered.map(i => {
+                const sup = state.suppliers.find(x => x.id === i.supplierId)?.name || '-';
+                const low = Number(i.stock) < Number(i.minStock);
+                return `<tr class="${low ? 'bg-rose-50/40' : ''}">
+                  <td class="px-4 py-3"><div class="font-bold">${esc(i.name)}</div><div class="text-[11px] text-slate-400 font-mono">${esc(i.code)} · IVA ${i.vatPct}%</div></td>
+                  <td class="px-4 py-3"><div>${esc(i.category)}</div><div class="text-[11px] text-slate-500">${esc(sup)}</div></td>
+                  <td class="px-4 py-3">1 ${i.uomPurchase}=${i.conversionFactor}${i.uomUse}</td>
+                  <td class="px-4 py-3 text-right">${fmtEuro(i.priceNet)}</td>
+                  <td class="px-4 py-3 text-right">${i.wastePct}%</td>
+                  <td class="px-4 py-3 text-right font-bold text-emerald-700">${fmtEuro(getIngUsablePurchaseCost(i))}/${i.uomPurchase}</td>
+                  <td class="px-4 py-3 text-right">${low ? `<span class="px-2 py-0.5 rounded-full bg-rose-600 text-white font-bold">${fmtNum(i.stock)} ${i.uomPurchase}</span>` : `<span class="font-bold">${fmtNum(i.stock)} ${i.uomPurchase}</span>`}<div class="text-[10px] text-slate-400">Min ${fmtNum(i.minStock)}</div></td>
+                  <td class="px-4 py-3"><div class="flex flex-wrap gap-1">${(i.allergens || []).map(a => `<span class="px-1 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">${ALLERGENS.find(x => x.id === a)?.short || a}</span>`).join('') || '-'}</div></td>
+                  <td class="px-4 py-3 text-right whitespace-nowrap"><button onclick="openIngredientModal('${i.id}')" class="p-1 hover:bg-slate-200 rounded"><i data-lucide="edit-3" class="w-4 h-4"></i></button><button onclick="deleteIngredient('${i.id}')" class="p-1 hover:bg-rose-100 text-rose-600 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
+                </tr>`;
+              }).join('')}</tbody>
+            </table>
+          </div>
+        </div>`;
+    }
+
+    function openIngredientModal(id = null) {
+      const i = id ? state.ingredients.find(x => x.id === id) : { id: '', code: `MP-${String(state.ingredients.length + 1).padStart(3, '0')}`, name: '', category: 'Carne', supplierId: state.suppliers[0]?.id || '', uomPurchase: 'kg', uomUse: 'gr', conversionFactor: 1000, priceNet: 0, vatPct: 10, wastePct: 0, stock: 0, minStock: 5, allergens: [] };
+      openModal(`<div class="px-6 py-4 border-b flex justify-between bg-slate-50"><h3 class="font-bold">${id ? 'Modifica' : 'Nuova'} Materia Prima</h3><button onclick="closeModal()"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+      <form onsubmit="saveIngredient(event,'${id || ''}')" class="p-6 space-y-4 text-xs">
+        <div class="grid grid-cols-3 gap-3"><div><label class="block font-semibold mb-1">Codice</label><input name="code" required value="${esc(i.code)}" class="w-full px-3 py-2 rounded-xl border" /></div><div class="col-span-2"><label class="block font-semibold mb-1">Nome</label><input name="name" required value="${esc(i.name)}" class="w-full px-3 py-2 rounded-xl border" /></div></div>
+        <div class="grid grid-cols-2 gap-3"><div><label class="block font-semibold mb-1">Categoria</label><select name="category" class="w-full px-3 py-2 rounded-xl border">${ING_CATS.map(c => `<option ${i.category === c ? 'selected' : ''}>${c}</option>`).join('')}</select></div><div><label class="block font-semibold mb-1">Fornitore</label><select name="supplierId" class="w-full px-3 py-2 rounded-xl border"><option value="">--</option>${state.suppliers.map(s => `<option value="${s.id}" ${i.supplierId === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></div></div>
+        <div class="grid grid-cols-4 gap-3"><div><label class="block font-semibold mb-1">UdM Acq</label><select name="uomPurchase" class="w-full px-3 py-2 rounded-xl border">${['kg','lt','pz','cartone'].map(u => `<option ${i.uomPurchase===u?'selected':''}>${u}</option>`).join('')}</select></div><div><label class="block font-semibold mb-1">UdM Uso</label><select name="uomUse" class="w-full px-3 py-2 rounded-xl border">${['gr','ml','pz'].map(u => `<option ${i.uomUse===u?'selected':''}>${u}</option>`).join('')}</select></div><div><label class="block font-semibold mb-1">Fatt. Conv.</label><input name="conversionFactor" type="number" step="0.01" required value="${i.conversionFactor}" class="w-full px-3 py-2 rounded-xl border" /></div><div><label class="block font-semibold mb-1">IVA%</label><select name="vatPct" class="w-full px-3 py-2 rounded-xl border">${[4,5,10,22].map(v => `<option value="${v}" ${Number(i.vatPct)===v?'selected':''}>${v}%</option>`).join('')}</select></div></div>
+        <div class="grid grid-cols-4 gap-3 bg-emerald-50 p-3 rounded-xl border border-emerald-200">
+          <div><label class="block font-semibold mb-1">Prezzo Netto</label><input id="ip" name="priceNet" type="number" step="0.01" required value="${i.priceNet}" oninput="prevIng()" class="w-full px-3 py-2 rounded-xl border bg-white" /></div>
+          <div><label class="block font-semibold mb-1">% Scarto</label><input id="iw" name="wastePct" type="number" step="0.5" max="95" required value="${i.wastePct}" oninput="prevIng()" class="w-full px-3 py-2 rounded-xl border bg-white" /></div>
+          <div><label class="block font-semibold mb-1">Giacenza</label><input name="stock" type="number" step="0.01" required value="${i.stock}" class="w-full px-3 py-2 rounded-xl border bg-white" /></div>
+          <div><label class="block font-semibold mb-1">Scorta Min</label><input name="minStock" type="number" step="0.01" required value="${i.minStock}" class="w-full px-3 py-2 rounded-xl border bg-white" /></div>
+          <div class="col-span-4 flex justify-between font-bold text-emerald-900"><span>Costo Reale Netto Utilizzabile:</span><span id="iprev">${fmtEuro(getIngUsablePurchaseCost(i))}</span></div>
+        </div>
+        <div><label class="block font-semibold mb-1">14 Allergeni</label><div class="grid grid-cols-2 sm:grid-cols-5 gap-1.5">${ALLERGENS.map(a => `<label class="flex items-center gap-1.5 p-1.5 border rounded-lg"><input type="checkbox" name="allergens" value="${a.id}" ${(i.allergens||[]).includes(a.id)?'checked':''} /><span>${a.label}</span></label>`).join('')}</div></div>
+        <div class="flex justify-end gap-2 pt-2 border-t"><button type="button" onclick="closeModal()" class="px-4 py-2 border rounded-xl">Annulla</button><button type="submit" class="px-5 py-2 bg-emerald-600 text-white rounded-xl font-semibold">Salva</button></div>
+      </form>`);
+    }
+    function prevIng() { const p = Number(document.getElementById('ip')?.value)||0, w = Math.min(Math.max(Number(document.getElementById('iw')?.value)||0,0),99); document.getElementById('iprev').textContent = fmtEuro(round2(p/(1-w/100))); }
+    function saveIngredient(e, id) {
+      e.preventDefault(); const fd = new FormData(e.target);
+      const o = { id: id || uid('ing'), code: fd.get('code').trim(), name: fd.get('name').trim(), category: fd.get('category'), supplierId: fd.get('supplierId'), uomPurchase: fd.get('uomPurchase'), uomUse: fd.get('uomUse'), conversionFactor: Number(fd.get('conversionFactor'))||1, priceNet: Number(fd.get('priceNet'))||0, vatPct: Number(fd.get('vatPct'))||10, wastePct: Number(fd.get('wastePct'))||0, stock: Number(fd.get('stock'))||0, minStock: Number(fd.get('minStock'))||0, allergens: fd.getAll('allergens') };
+      if (id) { const idx = state.ingredients.findIndex(x=>x.id===id); if (idx>=0) state.ingredients[idx]=o; } else state.ingredients.push(o);
+      saveState(); closeModal(); renderApp(); showToast('Materia prima salvata!', 'success');
+    }
+    function deleteIngredient(id) { if (confirm('Eliminare materia prima?')) { state.ingredients = state.ingredients.filter(i=>i.id!==id); saveState(); renderApp(); } }
+
+    // =========================================================================
+    // MODULO 3: ATTREZZATURE & NOLEGGI
+    // =========================================================================
+    function renderEquipment() {
+      if (!ui.eqCheckDate) ui.eqCheckDate = state.events.find(e => e.status === 'Confermato')?.date || todayStr(4);
+      const s = ui.eqSearch.toLowerCase();
+      const filtered = state.equipment.filter(e => (ui.eqCategory === 'Tutte' || e.category === ui.eqCategory) && (!s || e.name.toLowerCase().includes(s) || e.code.toLowerCase().includes(s)));
+      return `
+        <div class="space-y-5">
+          <div class="bg-white rounded-2xl p-4 border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap gap-2"><input type="text" value="${esc(ui.eqSearch)}" oninput="ui.eqSearch=this.value; renderApp()" placeholder="Cerca attrezzatura..." class="px-3 py-2 text-xs rounded-xl border border-slate-200" /><select onchange="ui.eqCategory=this.value; renderApp()" class="px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white"><option value="Tutte">Tutte</option>${EQ_CATS.map(c=>`<option ${ui.eqCategory===c?'selected':''}>${c}</option>`).join('')}</select></div>
+            <div class="flex flex-wrap items-center gap-3">
+              <div class="flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl text-xs"><span class="font-semibold text-amber-900">Disp. Data:</span><input type="date" value="${ui.eqCheckDate}" onchange="ui.eqCheckDate=this.value; renderApp()" class="bg-white border rounded-lg px-2 py-1 font-semibold" /></div>
+              <button onclick="openEquipmentModal()" class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-semibold">+ Nuova Attrezzatura</button>
+            </div>
+          </div>
+          <div class="bg-white rounded-2xl border border-slate-200 overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 uppercase text-[11px] border-b"><tr><th class="px-4 py-3">Attrezzatura</th><th class="px-4 py-3">Cat.</th><th class="px-4 py-3">Tipo</th><th class="px-4 py-3 text-right">Noleggio</th><th class="px-4 py-3">Stato</th><th class="px-4 py-3 text-right">Totale</th><th class="px-4 py-3 text-right">Impegnati</th><th class="px-4 py-3 text-right">Disponibili</th><th class="px-4 py-3 text-right">Azioni</th></tr></thead>
+              <tbody class="divide-y divide-slate-100">${filtered.map(eq => {
+                const av = getEquipmentAvailability(eq.id, ui.eqCheckDate);
+                return `<tr>
+                  <td class="px-4 py-3"><div class="font-bold">${esc(eq.name)}</div><div class="text-[11px] text-slate-400">${esc(eq.code)}</div></td>
+                  <td class="px-4 py-3">${esc(eq.category)}</td><td class="px-4 py-3 font-semibold ${eq.type==='A Noleggio'?'text-amber-700':'text-emerald-700'}">${eq.type}</td>
+                  <td class="px-4 py-3 text-right">${eq.type==='A Noleggio'?fmtEuro(eq.rentalCost):'-'}</td><td class="px-4 py-3">${eq.status}</td>
+                  <td class="px-4 py-3 text-right font-bold">${eq.totalQty}</td><td class="px-4 py-3 text-right text-amber-600 font-semibold">${av.committed}</td>
+                  <td class="px-4 py-3 text-right"><span class="px-2 py-0.5 rounded-full font-bold ${av.available>0?'bg-emerald-100 text-emerald-800':'bg-rose-600 text-white'}">${av.available}</span></td>
+                  <td class="px-4 py-3 text-right"><button onclick="openEquipmentModal('${eq.id}')" class="p-1 hover:bg-slate-200 rounded"><i data-lucide="edit-3" class="w-4 h-4"></i></button><button onclick="deleteEquipment('${eq.id}')" class="p-1 hover:bg-rose-100 text-rose-600 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
+                </tr>`;
+              }).join('')}</tbody>
+            </table>
+          </div>
+        </div>`;
+    }
+
+    function openEquipmentModal(id = null) {
+      const e = id ? state.equipment.find(x => x.id === id) : { id: '', code: `ATT-${String(state.equipment.length + 1).padStart(3, '0')}`, name: '', category: 'Tavoli', type: 'Di Proprietà', supplierId: '', rentalCost: 0, totalQty: 10, replacementCost: 0, status: 'Disponibile' };
+      openModal(`<div class="px-6 py-4 border-b flex justify-between bg-slate-50"><h3 class="font-bold">${id ? 'Modifica' : 'Nuova'} Attrezzatura</h3><button onclick="closeModal()"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+      <form onsubmit="saveEquipment(event,'${id || ''}')" class="p-6 space-y-4 text-xs">
+        <div class="grid grid-cols-3 gap-3"><div><label class="block font-semibold mb-1">Codice</label><input name="code" required value="${esc(e.code)}" class="w-full px-3 py-2 rounded-xl border" /></div><div class="col-span-2"><label class="block font-semibold mb-1">Nome</label><input name="name" required value="${esc(e.name)}" class="w-full px-3 py-2 rounded-xl border" /></div></div>
+        <div class="grid grid-cols-3 gap-3"><div><label class="block font-semibold mb-1">Categoria</label><select name="category" class="w-full px-3 py-2 rounded-xl border">${EQ_CATS.map(c => `<option ${e.category===c?'selected':''}>${c}</option>`).join('')}</select></div><div><label class="block font-semibold mb-1">Tipo</label><select name="type" class="w-full px-3 py-2 rounded-xl border"><option ${e.type==='Di Proprietà'?'selected':''}>Di Proprietà</option><option ${e.type==='A Noleggio'?'selected':''}>A Noleggio</option></select></div><div><label class="block font-semibold mb-1">Fornitore</label><select name="supplierId" class="w-full px-3 py-2 rounded-xl border"><option value="">--</option>${state.suppliers.map(s=>`<option value="${s.id}" ${e.supplierId===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select></div></div>
+        <div class="grid grid-cols-4 gap-3"><div><label class="block font-semibold mb-1">Qta Totale</label><input name="totalQty" type="number" required value="${e.totalQty}" class="w-full px-3 py-2 rounded-xl border" /></div><div><label class="block font-semibold mb-1">Costo Noleggio</label><input name="rentalCost" type="number" step="0.01" value="${e.rentalCost}" class="w-full px-3 py-2 rounded-xl border" /></div><div><label class="block font-semibold mb-1">Costo Riacq.</label><input name="replacementCost" type="number" step="0.01" value="${e.replacementCost}" class="w-full px-3 py-2 rounded-xl border" /></div><div><label class="block font-semibold mb-1">Stato</label><select name="status" class="w-full px-3 py-2 rounded-xl border">${['Disponibile','In Lavanderia','Manutenzione'].map(st=>`<option ${e.status===st?'selected':''}>${st}</option>`).join('')}</select></div></div>
+        <div class="flex justify-end gap-2 pt-2 border-t"><button type="button" onclick="closeModal()" class="px-4 py-2 border rounded-xl">Annulla</button><button type="submit" class="px-5 py-2 bg-emerald-600 text-white rounded-xl font-semibold">Salva</button></div>
+      </form>`);
+    }
+    function saveEquipment(ev, id) {
+      ev.preventDefault(); const fd = new FormData(ev.target);
+      const o = { id: id || uid('eq'), code: fd.get('code').trim(), name: fd.get('name').trim(), category: fd.get('category'), type: fd.get('type'), supplierId: fd.get('supplierId'), totalQty: Number(fd.get('totalQty'))||0, rentalCost: Number(fd.get('rentalCost'))||0, replacementCost: Number(fd.get('replacementCost'))||0, status: fd.get('status') };
+      if (id) { const idx = state.equipment.findIndex(x=>x.id===id); if (idx>=0) state.equipment[idx]=o; } else state.equipment.push(o);
+      saveState(); closeModal(); renderApp(); showToast('Attrezzatura salvata!', 'success');
+    }
+    function deleteEquipment(id) { if (confirm('Eliminare attrezzatura?')) { state.equipment = state.equipment.filter(e=>e.id!==id); saveState(); renderApp(); } }
+
+    // =========================================================================
+    // MODULO 4: SCHEDE TECNICHE & PACCHETTI MENU
+    // =========================================================================
+    function renderRecipesAndPackages() {
+      return `
+        <div class="space-y-5">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="inline-flex rounded-xl bg-white border border-slate-200 p-1">
+              <button onclick="ui.recipeSubTab='recipes'; renderApp()" class="px-4 py-2 rounded-lg text-xs font-semibold ${ui.recipeSubTab==='recipes'?'bg-slate-900 text-white':'text-slate-600'}">Tab A — Ricette & Drink (${state.recipes.length})</button>
+              <button onclick="ui.recipeSubTab='packages'; renderApp()" class="px-4 py-2 rounded-lg text-xs font-semibold ${ui.recipeSubTab==='packages'?'bg-slate-900 text-white':'text-slate-600'}">Tab B — Pacchetti Banqueting (${state.packages.length})</button>
+            </div>
+            ${ui.recipeSubTab==='recipes' ? `<button onclick="openRecipeModal()" class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-semibold">+ Nuova Scheda Tecnica</button>` : `<button onclick="openPackageModal()" class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-semibold">+ Nuovo Pacchetto</button>`}
+          </div>
+          ${ui.recipeSubTab === 'recipes' ? renderRecipesTab() : renderPackagesTab()}
+        </div>`;
+    }
+
+    function renderRecipesTab() {
+      const s = ui.recipeSearch.toLowerCase();
+      const list = state.recipes.filter(r => !s || r.name.toLowerCase().includes(s) || r.category.toLowerCase().includes(s));
+      return `
+        <div class="space-y-4">
+          <div class="bg-white rounded-2xl p-3.5 border border-slate-200"><input type="text" value="${esc(ui.recipeSearch)}" oninput="ui.recipeSearch=this.value; renderApp()" placeholder="Cerca ricetta o semilavorato..." class="px-3 py-2 text-xs rounded-xl border border-slate-200 w-72" /></div>
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">${list.map(r => {
+            const ra = getRecipeAnalysis(r.id);
+            const fcCls = ra.foodCostPct <= 28 ? 'bg-emerald-100 text-emerald-800' : (ra.foodCostPct <= 35 ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800');
+            return `<div class="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between">
+              <div>
+                <div class="flex justify-between items-start gap-2">
+                  <div><span class="text-[11px] font-mono text-slate-400">${esc(r.code)}</span> <span class="px-2 py-0.5 rounded bg-slate-100 text-[10px] font-semibold">${esc(r.category)}</span> ${r.isSemiFinished?'<span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">SEMILAVORATO</span>':''}<h3 class="text-sm font-bold mt-1">${esc(r.name)}</h3></div>
+                  <div class="flex gap-1"><button onclick="printRecipeSheet('${r.id}')" title="Stampa PDF" class="p-1 hover:bg-slate-100 rounded"><i data-lucide="printer" class="w-4 h-4"></i></button><button onclick="openRecipeModal('${r.id}')" class="p-1 hover:bg-slate-100 rounded"><i data-lucide="edit-3" class="w-4 h-4"></i></button><button onclick="deleteRecipe('${r.id}')" class="p-1 hover:bg-rose-100 text-rose-600 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>
+                </div>
+                <div class="mt-2.5 text-[11px] bg-slate-50 p-2.5 rounded-xl space-y-1">${(r.items||[]).slice(0,4).map(it => { const n = it.type==='ingredient'?(state.ingredients.find(i=>i.id===it.refId)?.name||'MP'):(state.recipes.find(sr=>sr.id===it.refId)?.name||'SL'); return `<div class="flex justify-between"><span>${esc(n)}</span><span class="font-semibold">${it.qty}</span></div>`; }).join('')}</div>
+                <div class="mt-2 flex flex-wrap gap-1">${ra.allergens.map(a=>`<span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">${ALLERGENS.find(x=>x.id===a)?.label||a}</span>`).join('')||'<span class="text-[10px] text-emerald-600">No allergeni</span>'}</div>
+              </div>
+              <div class="mt-4 pt-3 border-t grid grid-cols-3 text-center text-xs">
+                <div><div class="text-[10px] text-slate-400">Costo</div><div class="font-extrabold">${fmtEuro(ra.totalCost)}</div></div>
+                ${r.isSemiFinished ? `<div class="col-span-2"><div class="text-[10px] text-slate-400">Resa ${r.yieldQty}${r.yieldUom}</div><div class="font-bold text-emerald-700">${fmtEuro(ra.costPerYieldUnit*100)} / 100${r.yieldUom}</div></div>` : `<div><div class="text-[10px] text-slate-400">Vendita</div><div class="font-extrabold text-emerald-700">${fmtEuro(r.sellingPriceNet)}</div></div><div><div class="text-[10px] text-slate-400">FC %</div><span class="px-2 py-0.5 rounded-full font-bold ${fcCls}">${fmtNum(ra.foodCostPct,1)}%</span></div>`}
+              </div>
+            </div>`;
+          }).join('')}</div>
+        </div>`;
+    }
+
+    let tmpRecItems = [];
+    function openRecipeModal(id = null) {
+      const r = id ? state.recipes.find(x=>x.id===id) : { id:'', code:`RIC-${state.recipes.length+1}`, name:'', category:'Primi Piatti', isSemiFinished:false, yieldQty:1, yieldUom:'pz', sellingPriceNet:18, vatPct:10, notes:'', items:[] };
+      tmpRecItems = JSON.parse(JSON.stringify(r.items||[]));
+      openModal(`<div class="px-6 py-4 border-b flex justify-between bg-slate-50"><h3 class="font-bold">${id?'Modifica':'Nuova'} Scheda Tecnica</h3><button onclick="closeModal()"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+      <form onsubmit="saveRecipe(event,'${id||''}')" class="p-6 space-y-4 text-xs">
+        <div class="grid grid-cols-4 gap-3"><div><label class="block font-semibold mb-1">Codice</label><input name="code" required value="${esc(r.code)}" class="w-full px-3 py-2 rounded-xl border" /></div><div class="col-span-2"><label class="block font-semibold mb-1">Nome</label><input name="name" required value="${esc(r.name)}" class="w-full px-3 py-2 rounded-xl border" /></div><div><label class="block font-semibold mb-1">Categoria</label><select name="category" class="w-full px-3 py-2 rounded-xl border">${['Antipasti','Primi Piatti','Secondi Piatti','Contorni','Dessert','Beverage & Drink','Semilavorato'].map(c=>`<option ${r.category===c?'selected':''}>${c}</option>`).join('')}</select></div></div>
+        <div class="grid grid-cols-4 gap-3 bg-slate-50 p-3 rounded-xl border items-center">
+          <label class="flex items-center gap-2 font-semibold"><input type="checkbox" name="isSemiFinished" ${r.isSemiFinished?'checked':''} /> Semilavorato</label>
+          <div><label class="block text-[11px]">Resa</label><input name="yieldQty" type="number" step="0.1" value="${r.yieldQty}" class="w-full px-2 py-1 rounded border bg-white" /></div>
+          <div><label class="block text-[11px]">UdM</label><select name="yieldUom" class="w-full px-2 py-1 rounded border bg-white">${['pz','gr','ml'].map(u=>`<option ${r.yieldUom===u?'selected':''}>${u}</option>`).join('')}</select></div>
+          <div><label class="block text-[11px]">IVA%</label><select name="vatPct" class="w-full px-2 py-1 rounded border bg-white"><option value="10" ${Number(r.vatPct)===10?'selected':''}>10%</option><option value="22" ${Number(r.vatPct)===22?'selected':''}>22%</option></select></div>
+        </div>
+        <div class="border rounded-xl p-3 space-y-2">
+          <div class="flex flex-wrap gap-2 justify-between"><span class="font-bold">Ingredienti</span><div class="flex gap-2"><select id="rsel" class="px-2 py-1 rounded border max-w-[220px]"><optgroup label="Materie Prime">${state.ingredients.map(i=>`<option value="ingredient:${i.id}">${esc(i.name)} (${i.uomUse})</option>`).join('')}</optgroup><optgroup label="Semilavorati">${state.recipes.filter(s=>s.isSemiFinished&&s.id!==id).map(s=>`<option value="recipe:${s.id}">[SL] ${esc(s.name)}</option>`).join('')}</optgroup></select><input id="rqty" type="number" step="0.1" value="100" class="w-20 px-2 py-1 rounded border" /><button type="button" onclick="addRItem()" class="px-3 py-1 bg-slate-900 text-white rounded font-semibold">+ Aggiungi</button></div></div>
+          <div id="rlist" class="max-h-40 overflow-y-auto divide-y"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-4 bg-emerald-50 p-3.5 rounded-xl border border-emerald-200">
+          <div class="space-y-2"><div>Target FC%: <input id="sfc" type="number" value="25" min="5" max="80" oninput="recalcR()" class="w-14 px-2 py-0.5 border rounded bg-white font-bold" /> &rarr; Prezzo Sugg.: <strong id="ssug">€ 0,00</strong></div><div>Prezzo Vendita Netto: <input id="rsell" name="sellingPriceNet" type="number" step="0.1" value="${r.sellingPriceNet}" oninput="recalcR()" class="w-20 px-2 py-1 border rounded bg-white font-bold" /></div></div>
+          <div class="grid grid-cols-3 text-center items-center bg-white rounded-xl p-2"><div><div class="text-[10px] text-slate-400">Costo</div><div id="lc" class="font-bold">€0</div></div><div><div class="text-[10px] text-slate-400">FC%</div><div id="lf" class="font-bold text-amber-600">0%</div></div><div><div class="text-[10px] text-slate-400">Margine</div><div id="lm" class="font-bold text-emerald-600">€0</div></div></div>
+        </div>
+        <div><label class="block font-semibold mb-1">Note</label><textarea name="notes" rows="2" class="w-full px-3 py-2 rounded-xl border">${esc(r.notes||'')}</textarea></div>
+        <div class="flex justify-end gap-2"><button type="button" onclick="closeModal()" class="px-4 py-2 border rounded-xl">Annulla</button><button type="submit" class="px-5 py-2 bg-emerald-600 text-white rounded-xl font-semibold">Salva</button></div>
+      </form>`);
+      renderRList();
+    }
+    function addRItem() { const [type, refId] = document.getElementById('rsel').value.split(':'); const qty = Number(document.getElementById('rqty').value)||0; if (refId && qty>0) { tmpRecItems.push({type,refId,qty}); renderRList(); } }
+    function renderRList() {
+      const w = document.getElementById('rlist'); if (!w) return;
+      w.innerHTML = tmpRecItems.map((it,idx) => {
+        const n = it.type==='ingredient' ? state.ingredients.find(i=>i.id===it.refId)?.name : '[SL] '+state.recipes.find(r=>r.id===it.refId)?.name;
+        const c = it.type==='ingredient' ? (getIngUsableUseUnitCost(state.ingredients.find(i=>i.id===it.refId)||{})*it.qty) : (getRecipeAnalysis(it.refId).costPerYieldUnit*it.qty);
+        return `<div class="flex items-center justify-between py-1.5 gap-2"><span class="flex-1">${esc(n)}</span><input type="number" step="0.1" value="${it.qty}" onchange="tmpRecItems[${idx}].qty=Number(this.value)||0; renderRList()" class="w-20 px-2 py-0.5 border rounded text-right" /><span class="w-16 text-right font-bold">${fmtEuro(c)}</span><button type="button" onclick="tmpRecItems.splice(${idx},1); renderRList()" class="text-rose-500">✕</button></div>`;
+      }).join('') || '<div class="py-3 text-center text-slate-400">Vuoto</div>';
+      recalcR();
+    }
+    function recalcR() {
+      let c = 0; tmpRecItems.forEach(it => { c += it.type==='ingredient' ? getIngUsableUseUnitCost(state.ingredients.find(i=>i.id===it.refId)||{})*it.qty : getRecipeAnalysis(it.refId).costPerYieldUnit*it.qty; });
+      c = round2(c); const t = Math.max(Number(document.getElementById('sfc')?.value)||25,1), s = Number(document.getElementById('rsell')?.value)||0;
+      document.getElementById('lc').textContent = fmtEuro(c); document.getElementById('ssug').textContent = fmtEuro(round2(c/(t/100)));
+      document.getElementById('lf').textContent = (s>0?fmtNum(round2((c/s)*100),1):'0')+'%'; document.getElementById('lm').textContent = fmtEuro(round2(s-c));
+    }
+    function saveRecipe(e, id) {
+      e.preventDefault(); const fd = new FormData(e.target);
+      const o = { id: id||uid('rec'), code: fd.get('code').trim(), name: fd.get('name').trim(), category: fd.get('category'), isSemiFinished: fd.get('isSemiFinished')==='on', yieldQty: Number(fd.get('yieldQty'))||1, yieldUom: fd.get('yieldUom')||'pz', sellingPriceNet: Number(fd.get('sellingPriceNet'))||0, vatPct: Number(fd.get('vatPct'))||10, notes: fd.get('notes').trim(), items: tmpRecItems };
+      if (id) { const idx = state.recipes.findIndex(x=>x.id===id); if (idx>=0) state.recipes[idx]=o; } else state.recipes.push(o);
+      saveState(); closeModal(); renderApp(); showToast('Scheda tecnica salvata!', 'success');
+    }
+    function deleteRecipe(id) { if (confirm('Eliminare ricetta?')) { state.recipes = state.recipes.filter(r=>r.id!==id); saveState(); renderApp(); } }
+
+    function renderPackagesTab() {
+      return `<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">${state.packages.map(pkg => {
+        const pa = getPackageAnalysis(pkg.id);
+        return `<div class="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-start"><h3 class="text-base font-bold">${esc(pkg.name)}</h3><div class="flex gap-1"><button onclick="openPackageModal('${pkg.id}')" class="p-1 hover:bg-slate-100 rounded"><i data-lucide="edit-3" class="w-4 h-4"></i></button><button onclick="deletePackage('${pkg.id}')" class="p-1 hover:bg-rose-100 text-rose-600 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>
+            <p class="text-xs text-slate-500 mt-1">${esc(pkg.description)}</p>
+            <div class="mt-3 bg-slate-50 rounded-xl p-3 text-xs space-y-1">${pkg.recipeIds.map(rid=>{ const r=state.recipes.find(x=>x.id===rid); return r?`<div class="flex justify-between"><span>${esc(r.name)}</span><span>${fmtEuro(getRecipeAnalysis(rid).totalCost)}</span></div>`:''; }).join('')}</div>
+          </div>
+          <div class="mt-4 pt-3 border-t text-xs space-y-2">
+            <div class="grid grid-cols-2 bg-emerald-50 p-2.5 rounded-xl border border-emerald-100"><div><div class="text-[10px] text-slate-500">Vendita Ad. / Bb.</div><div class="font-extrabold text-emerald-700">${fmtEuro(pa.adultPrice)} / ${fmtEuro(pa.childPrice)}</div></div><div class="text-right"><div class="text-[10px] text-slate-500">Costo Coperto</div><div class="font-extrabold">${fmtEuro(pa.adultCost)} (${fmtNum(pa.foodCostPct,1)}%)</div></div></div>
+            <div class="flex justify-between font-bold"><span>Margine Netto / Coperto:</span><span class="text-emerald-700">${fmtEuro(pa.adultMargin)} (${fmtNum(pa.adultMarginPct,1)}%)</span></div>
+          </div>
+        </div>`;
+      }).join('')}</div>`;
+    }
+    function openPackageModal(id = null) {
+      const p = id ? state.packages.find(x=>x.id===id) : { id:'', name:'', description:'', adultPriceNet:100, childPriceNet:45, childCostPct:50, recipeIds:[] };
+      openModal(`<div class="px-6 py-4 border-b flex justify-between bg-slate-50"><h3 class="font-bold">${id?'Modifica':'Nuovo'} Pacchetto</h3><button onclick="closeModal()"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+      <form onsubmit="savePackage(event,'${id||''}')" class="p-6 space-y-4 text-xs">
+        <div><label class="block font-semibold mb-1">Nome Pacchetto</label><input name="name" required value="${esc(p.name)}" class="w-full px-3 py-2 rounded-xl border" /></div>
+        <div><label class="block font-semibold mb-1">Descrizione</label><textarea name="description" rows="2" class="w-full px-3 py-2 rounded-xl border">${esc(p.description)}</textarea></div>
+        <div class="grid grid-cols-3 gap-3"><div><label class="block font-semibold mb-1">Prezzo Adulto €</label><input name="adultPriceNet" type="number" step="0.5" required value="${p.adultPriceNet}" class="w-full px-3 py-2 rounded-xl border" /></div><div><label class="block font-semibold mb-1">Prezzo Bambino €</label><input name="childPriceNet" type="number" step="0.5" required value="${p.childPriceNet}" class="w-full px-3 py-2 rounded-xl border" /></div><div><label class="block font-semibold mb-1">% Costo Bimbo</label><input name="childCostPct" type="number" required value="${p.childCostPct}" class="w-full px-3 py-2 rounded-xl border" /></div></div>
+        <div class="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-3 rounded-xl border bg-slate-50">${state.recipes.filter(r=>!r.isSemiFinished).map(r=>`<label class="flex items-center justify-between p-2 bg-white rounded-lg border"><span class="flex items-center gap-2"><input type="checkbox" name="recipeIds" value="${r.id}" ${p.recipeIds.includes(r.id)?'checked':''} /><span>${esc(r.name)}</span></span><span class="font-semibold">${fmtEuro(getRecipeAnalysis(r.id).totalCost)}</span></label>`).join('')}</div>
+        <div class="flex justify-end gap-2"><button type="button" onclick="closeModal()" class="px-4 py-2 border rounded-xl">Annulla</button><button type="submit" class="px-5 py-2 bg-emerald-600 text-white rounded-xl font-semibold">Salva</button></div>
+      </form>`);
+    }
+    function savePackage(e, id) {
+      e.preventDefault(); const fd = new FormData(e.target);
+      const o = { id: id||uid('pkg'), name: fd.get('name').trim(), description: fd.get('description').trim(), adultPriceNet: Number(fd.get('adultPriceNet'))||0, childPriceNet: Number(fd.get('childPriceNet'))||0, childCostPct: Number(fd.get('childCostPct'))||50, recipeIds: fd.getAll('recipeIds') };
+      if (id) { const idx = state.packages.findIndex(x=>x.id===id); if (idx>=0) state.packages[idx]=o; } else state.packages.push(o);
+      saveState(); closeModal(); renderApp(); showToast('Pacchetto salvato!', 'success');
+    }
+    function deletePackage(id) { if (confirm('Eliminare pacchetto?')) { state.packages = state.packages.filter(p=>p.id!==id); saveState(); renderApp(); } }
+
+    // =========================================================================
+    // MODULO 5: EVENTI, BANQUETING, TABLEAU & BEO
+    // =========================================================================
+    function renderEvents() {
+      if (ui.activeEventId) { const ev = state.events.find(e=>e.id===ui.activeEventId); if (ev) return renderEventWorkspace(ev); ui.activeEventId = null; }
+      const filtered = state.events.filter(e => ui.eventFilterStatus==='Tutti' || e.status===ui.eventFilterStatus).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+      return `
+        <div class="space-y-5">
+          <div class="bg-white rounded-2xl p-4 border border-slate-200 flex flex-wrap justify-between gap-3">
+            <div class="flex flex-wrap gap-1.5">${['Tutti',...EV_STATUSES].map(st=>`<button onclick="ui.eventFilterStatus='${st}'; renderApp()" class="px-3 py-1.5 rounded-xl text-xs font-semibold ${ui.eventFilterStatus===st?'bg-slate-900 text-white':'bg-slate-100 text-slate-600'}">${st}</button>`).join('')}</div>
+            <button onclick="openNewEventModal()" class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-semibold">+ Nuovo Evento</button>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">${filtered.map(ev => {
+            const f = getEventFinancials(ev), pkg = state.packages.find(p=>p.id===ev.packageId);
+            const sc = {'Preventivo':'bg-slate-100 text-slate-700','Prova Menu':'bg-amber-100 text-amber-800','Confermato':'bg-emerald-100 text-emerald-800','Concluso':'bg-blue-100 text-blue-800','Annullato':'bg-rose-100 text-rose-800'}[ev.status]||'';
+            return `<div class="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between">
+              <div>
+                <div class="flex justify-between"><span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold ${sc}">${ev.status}</span><span class="text-xs font-bold">${fmtDate(ev.date)}</span></div>
+                <h3 class="text-base font-bold mt-2">${esc(ev.name)}</h3>
+                <div class="text-xs text-slate-500">${ev.type} · ${esc(ev.locationName)} (${ev.locationType})</div>
+                <div class="mt-3 grid grid-cols-3 text-center bg-slate-50 rounded-xl p-2 text-xs"><div><div class="text-[10px] text-slate-400">Adulti</div><strong>${ev.adults}</strong></div><div><div class="text-[10px] text-slate-400">Bambini</div><strong>${ev.children}</strong></div><div><div class="text-[10px] text-slate-400">Staff</div><strong>${ev.staffMeals}</strong></div></div>
+                <div class="mt-2 text-xs text-slate-600">Menu: <strong>${esc(pkg?.name||'-')}</strong></div>
+              </div>
+              <div class="mt-4 pt-3 border-t text-xs space-y-2">
+                <div class="flex justify-between"><span>Ricavo / Utile:</span><span class="font-extrabold">${fmtEuro(f.totalRevenue)} / <span class="text-emerald-600">${fmtEuro(f.netProfit)} (${fmtNum(f.netMarginPct,1)}%)</span></span></div>
+                <div class="flex gap-2"><button onclick="openEventDetail('${ev.id}')" class="flex-1 py-2 rounded-xl bg-slate-900 text-white font-semibold">Apri Workspace &rarr;</button><button onclick="deleteEvent('${ev.id}')" class="p-2 border rounded-xl text-rose-600"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>
+              </div>
+            </div>`;
+          }).join('')}</div>
+        </div>`;
+    }
+    function openEventDetail(id) { ui.activeTab='events'; ui.activeEventId=id; ui.activeEventSubTab='overview'; renderApp(); }
+    function openNewEventModal() {
+      openModal(`<div class="px-6 py-4 border-b flex justify-between bg-slate-50"><h3 class="font-bold">Nuovo Evento</h3><button onclick="closeModal()"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+      <form onsubmit="createNewEvent(event)" class="p-6 space-y-4 text-xs">
+        <div class="grid grid-cols-2 gap-3"><div><label class="block font-semibold mb-1">Nome Evento</label><input name="name" required class="w-full px-3 py-2 rounded-xl border" /></div><div><label class="block font-semibold mb-1">Tipo</label><select name="type" class="w-full px-3 py-2 rounded-xl border">${EV_TYPES.map(t=>`<option>${t}</option>`).join('')}</select></div></div>
+        <div class="grid grid-cols-3 gap-3"><div><label class="block font-semibold mb-1">Data</label><input name="date" type="date" required value="${todayStr(14)}" class="w-full px-3 py-2 rounded-xl border" /></div><div><label class="block font-semibold mb-1">Orario</label><input name="timeSlot" value="18:00 - 01:00" class="w-full px-3 py-2 rounded-xl border" /></div><div><label class="block font-semibold mb-1">Location</label><select name="locationType" class="w-full px-3 py-2 rounded-xl border"><option>Esterna</option><option>Interna</option></select></div></div>
+        <div class="grid grid-cols-2 gap-3"><div><label class="block font-semibold mb-1">Nome Location</label><input name="locationName" required class="w-full px-3 py-2 rounded-xl border" /></div><div><label class="block font-semibold mb-1">Pacchetto</label><select name="packageId" class="w-full px-3 py-2 rounded-xl border">${state.packages.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div></div>
+        <div class="grid grid-cols-3 gap-3"><div><label class="block font-semibold mb-1">Adulti</label><input name="adults" type="number" value="80" class="w-full px-3 py-2 rounded-xl border" /></div><div><label class="block font-semibold mb-1">Bambini</label><input name="children" type="number" value="8" class="w-full px-3 py-2 rounded-xl border" /></div><div><label class="block font-semibold mb-1">Staff</label><input name="staffMeals" type="number" value="5" class="w-full px-3 py-2 rounded-xl border" /></div></div>
+        <div class="flex justify-end gap-2"><button type="button" onclick="closeModal()" class="px-4 py-2 border rounded-xl">Annulla</button><button type="submit" class="px-5 py-2 bg-emerald-600 text-white rounded-xl font-semibold">Crea</button></div>
+      </form>`);
+    }
+    function createNewEvent(e) {
+      e.preventDefault(); const fd = new FormData(e.target);
+      const ev = { id: uid('ev'), name: fd.get('name').trim(), type: fd.get('type'), status: 'Preventivo', date: fd.get('date'), timeSlot: fd.get('timeSlot').trim(), locationType: fd.get('locationType'), locationName: fd.get('locationName').trim(), clientName: fd.get('name').trim(), clientPhone: '', adults: Number(fd.get('adults'))||0, children: Number(fd.get('children'))||0, staffMeals: Number(fd.get('staffMeals'))||0, packageId: fd.get('packageId'), dietaryNotes: '', extras: [], equipmentList: [], tables: [], staffAssigned: [], payments: [], timeline: [{time:'18:00',activity:'Aperitivo'},{time:'20:00',activity:'Cena placée'}] };
+      state.events.push(ev); saveState(); closeModal(); openEventDetail(ev.id); showToast('Evento creato!', 'success');
+    }
+    function deleteEvent(id) { if (confirm('Eliminare evento?')) { state.events = state.events.filter(e=>e.id!==id); saveState(); renderApp(); } }
+    function updateEvField(evId, f, v) { const ev = state.events.find(e=>e.id===evId); if (ev) { ev[f]=v; saveState(); renderApp(); } }
+
+    function renderEventWorkspace(ev) {
+      const f = getEventFinancials(ev);
+      const tabs = [['overview','Dati & Conto Economico'],['menu','Menu & Extra'],['equipment','Attrezzature'],['tables','Mappa Tavoli'],['staff','Brigata Staff'],['payments','Pagamenti'],['beo','BEO']];
+      return `
+        <div class="space-y-5">
+          <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+            <div class="flex flex-wrap justify-between items-center gap-3">
+              <div class="flex items-center gap-3">
+                <button onclick="ui.activeEventId=null; renderApp()" class="p-2 rounded-xl border hover:bg-slate-100"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>
+                <div>
+                  <div class="flex items-center gap-2"><h2 class="text-lg font-extrabold">${esc(ev.name)}</h2><select onchange="updateEvField('${ev.id}','status',this.value)" class="px-2.5 py-1 rounded-full text-xs font-bold border bg-emerald-50 text-emerald-800">${EV_STATUSES.map(st=>`<option ${ev.status===st?'selected':''}>${st}</option>`).join('')}</select></div>
+                  <div class="text-xs text-slate-500">${ev.type} · ${fmtDate(ev.date)} (${esc(ev.timeSlot)}) · ${esc(ev.locationName)}</div>
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <button onclick="printEventQuote('${ev.id}')" class="px-3 py-2 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-semibold">Stampa Preventivo PDF</button>
+                <button onclick="printEventBEO('${ev.id}')" class="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold">Stampa BEO PDF</button>
+              </div>
+            </div>
+            <div class="mt-4 pt-4 border-t grid grid-cols-2 sm:grid-cols-6 gap-3 text-xs">
+              <div class="bg-slate-50 p-2.5 rounded-xl"><div class="text-[10px] text-slate-400">RICAVO</div><div class="font-extrabold">${fmtEuro(f.totalRevenue)}</div></div>
+              <div class="bg-slate-50 p-2.5 rounded-xl"><div class="text-[10px] text-slate-400">F&B (${fmtNum(f.foodCostPct,1)}%)</div><div class="font-bold text-amber-700">${fmtEuro(f.foodCost)}</div></div>
+              <div class="bg-slate-50 p-2.5 rounded-xl"><div class="text-[10px] text-slate-400">STAFF (${fmtNum(f.labourCostPct,1)}%)</div><div class="font-bold">${fmtEuro(f.staffCost)}</div></div>
+              <div class="bg-slate-50 p-2.5 rounded-xl"><div class="text-[10px] text-slate-400">NOLEGGI/EXTRA</div><div class="font-bold">${fmtEuro(f.rentalCost+f.extrasCost)}</div></div>
+              <div class="bg-emerald-50 p-2.5 rounded-xl border border-emerald-200"><div class="text-[10px] text-emerald-700 font-semibold">UTILE NETTO</div><div class="font-extrabold text-emerald-800">${fmtEuro(f.netProfit)} (${fmtNum(f.netMarginPct,1)}%)</div></div>
+              <div class="bg-amber-50 p-2.5 rounded-xl border border-amber-200"><div class="text-[10px] text-amber-700 font-semibold">SALDO</div><div class="font-extrabold text-amber-900">${fmtEuro(f.balanceDue)}</div></div>
+            </div>
+            <div class="mt-4 flex flex-wrap gap-1.5 border-t pt-3">${tabs.map(([id,lbl])=>`<button onclick="ui.activeEventSubTab='${id}'; renderApp()" class="px-3 py-1.5 rounded-lg text-xs font-semibold ${ui.activeEventSubTab===id?'bg-emerald-600 text-white':'bg-slate-100 text-slate-600'}">${lbl}</button>`).join('')}</div>
+          </div>
+          <div class="bg-white rounded-2xl p-5 border border-slate-200">
+            ${ui.activeEventSubTab==='overview'?renderEvOverview(ev,f):''}
+            ${ui.activeEventSubTab==='menu'?renderEvMenu(ev):''}
+            ${ui.activeEventSubTab==='equipment'?renderEvEquipment(ev):''}
+            ${ui.activeEventSubTab==='tables'?renderEvTables(ev):''}
+            ${ui.activeEventSubTab==='staff'?renderEvStaff(ev):''}
+            ${ui.activeEventSubTab==='payments'?renderEvPayments(ev,f):''}
+            ${ui.activeEventSubTab==='beo'?renderEvBEO(ev):''}
+          </div>
+        </div>`;
+    }
+
+    function renderEvOverview(ev, f) {
+      return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 text-xs">
+        <div class="lg:col-span-2 space-y-3">
+          <div class="grid grid-cols-3 gap-3">
+            <div><label class="block font-semibold mb-1">Nome Evento</label><input value="${esc(ev.name)}" onchange="updateEvField('${ev.id}','name',this.value)" class="w-full px-3 py-2 rounded-xl border" /></div>
+            <div><label class="block font-semibold mb-1">Tipo</label><select onchange="updateEvField('${ev.id}','type',this.value)" class="w-full px-3 py-2 rounded-xl border">${EV_TYPES.map(t=>`<option ${ev.type===t?'selected':''}>${t}</option>`).join('')}</select></div>
+            <div><label class="block font-semibold mb-1">Data</label><input type="date" value="${ev.date}" onchange="updateEvField('${ev.id}','date',this.value)" class="w-full px-3 py-2 rounded-xl border" /></div>
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <div><label class="block font-semibold mb-1">Orario</label><input value="${esc(ev.timeSlot)}" onchange="updateEvField('${ev.id}','timeSlot',this.value)" class="w-full px-3 py-2 rounded-xl border" /></div>
+            <div><label class="block font-semibold mb-1">Tipo Location</label><select onchange="updateEvField('${ev.id}','locationType',this.value)" class="w-full px-3 py-2 rounded-xl border"><option ${ev.locationType==='Esterna'?'selected':''}>Esterna</option><option ${ev.locationType==='Interna'?'selected':''}>Interna</option></select></div>
+            <div><label class="block font-semibold mb-1">Location</label><input value="${esc(ev.locationName)}" onchange="updateEvField('${ev.id}','locationName',this.value)" class="w-full px-3 py-2 rounded-xl border" /></div>
+          </div>
+          <div class="grid grid-cols-3 gap-3 bg-slate-50 p-3 rounded-xl border">
+            <div><label class="block font-semibold mb-1">Adulti</label><input type="number" value="${ev.adults}" onchange="updateEvField('${ev.id}','adults',Number(this.value))" class="w-full px-3 py-2 rounded-xl border bg-white font-bold" /></div>
+            <div><label class="block font-semibold mb-1">Bambini</label><input type="number" value="${ev.children}" onchange="updateEvField('${ev.id}','children',Number(this.value))" class="w-full px-3 py-2 rounded-xl border bg-white font-bold" /></div>
+            <div><label class="block font-semibold mb-1">Staff/Fornitori</label><input type="number" value="${ev.staffMeals}" onchange="updateEvField('${ev.id}','staffMeals',Number(this.value))" class="w-full px-3 py-2 rounded-xl border bg-white font-bold" /></div>
+          </div>
+          <div><label class="block font-semibold text-amber-800 mb-1">Intolleranze & Diete Speciali</label><textarea rows="3" onchange="updateEvField('${ev.id}','dietaryNotes',this.value)" class="w-full px-3 py-2 rounded-xl border border-amber-200 bg-amber-50/40">${esc(ev.dietaryNotes||'')}</textarea></div>
+        </div>
+        <div class="bg-slate-900 text-white rounded-2xl p-5 space-y-2.5 h-fit">
+          <div class="text-sm font-bold text-emerald-400">CONTO ECONOMICO</div>
+          <div class="flex justify-between"><span>Menu</span><span>${fmtEuro(f.menuRevenue)}</span></div>
+          <div class="flex justify-between"><span>Extra</span><span>${fmtEuro(f.extrasRevenue)}</span></div>
+          <div class="flex justify-between font-bold text-emerald-300 border-b border-slate-800 pb-2"><span>RICAVO TOTALE</span><span>${fmtEuro(f.totalRevenue)}</span></div>
+          <div class="flex justify-between"><span>Food & Beverage</span><span class="text-amber-300">- ${fmtEuro(f.foodCost)}</span></div>
+          <div class="flex justify-between"><span>Personale</span><span class="text-amber-300">- ${fmtEuro(f.staffCost)}</span></div>
+          <div class="flex justify-between"><span>Noleggi</span><span class="text-amber-300">- ${fmtEuro(f.rentalCost)}</span></div>
+          <div class="flex justify-between border-b border-slate-800 pb-2"><span>Extra Fornitori</span><span class="text-amber-300">- ${fmtEuro(f.extrasCost)}</span></div>
+          <div class="flex justify-between items-center pt-1"><span class="font-bold">UTILE NETTO (${fmtNum(f.netMarginPct,1)}%)</span><span class="text-lg font-extrabold text-emerald-400">${fmtEuro(f.netProfit)}</span></div>
+        </div>
+      </div>`;
+    }
+
+    function renderEvMenu(ev) {
+      const pa = getPackageAnalysis(ev.packageId);
+      return `<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 text-xs">
+        <div class="space-y-3">
+          <h3 class="font-bold text-sm">Pacchetto Menu</h3>
+          <select onchange="updateEvField('${ev.id}','packageId',this.value)" class="w-full px-3 py-2 rounded-xl border font-semibold"><option value="">--</option>${state.packages.map(p=>`<option value="${p.id}" ${ev.packageId===p.id?'selected':''}>${esc(p.name)} (${fmtEuro(p.adultPriceNet)})</option>`).join('')}</select>
+          <div class="bg-slate-50 p-3 rounded-xl border">Adulto: <strong>${fmtEuro(pa.adultPrice)}</strong> (Costo ${fmtEuro(pa.adultCost)}) · Bambino: <strong>${fmtEuro(pa.childPrice)}</strong></div>
+        </div>
+        <div class="space-y-3">
+          <h3 class="font-bold text-sm">Servizi Extra</h3>
+          <form onsubmit="addEvExtra(event,'${ev.id}')" class="flex flex-wrap gap-2 bg-slate-50 p-2.5 rounded-xl border">
+            <input name="name" required placeholder="Extra" class="flex-1 px-2 py-1.5 rounded border bg-white" />
+            <input name="supplierCost" type="number" step="0.01" required placeholder="Costo €" class="w-20 px-2 py-1.5 rounded border bg-white" />
+            <input name="clientPrice" type="number" step="0.01" required placeholder="Cliente €" class="w-20 px-2 py-1.5 rounded border bg-white" />
+            <button type="submit" class="px-3 py-1.5 bg-emerald-600 text-white rounded font-semibold">+</button>
+          </form>
+          <div class="divide-y border rounded-xl">${(ev.extras||[]).map(ex=>`<div class="flex justify-between p-2.5"><div><strong>${esc(ex.name)}</strong><div class="text-[11px] text-slate-500">Costo: ${fmtEuro(ex.supplierCost)}</div></div><div class="flex items-center gap-3"><span class="font-bold text-emerald-700">${fmtEuro(ex.clientPrice)}</span><button onclick="rmEvExtra('${ev.id}','${ex.id}')" class="text-rose-500">✕</button></div></div>`).join('')||'<div class="p-3 text-center text-slate-400">Nessun extra</div>'}</div>
+        </div>
+      </div>`;
+    }
+    function addEvExtra(e, evId) { e.preventDefault(); const fd = new FormData(e.target), ev = state.events.find(x=>x.id===evId); ev.extras.push({id:uid('ex'),name:fd.get('name').trim(),supplierCost:Number(fd.get('supplierCost'))||0,clientPrice:Number(fd.get('clientPrice'))||0}); saveState(); renderApp(); }
+    function rmEvExtra(evId, exId) { const ev = state.events.find(x=>x.id===evId); ev.extras = ev.extras.filter(x=>x.id!==exId); saveState(); renderApp(); }
+
+    function renderEvEquipment(ev) {
+      return `<div class="space-y-4 text-xs">
+        <div class="flex flex-wrap justify-between items-center gap-2">
+          <h3 class="font-bold text-sm">Distinta Attrezzature (${fmtDate(ev.date)})</h3>
+          <form onsubmit="addEvEq(event,'${ev.id}')" class="flex gap-2"><select name="equipmentId" class="px-3 py-2 rounded-xl border">${state.equipment.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('')}</select><input name="qty" type="number" min="1" value="10" class="w-20 px-3 py-2 rounded-xl border" /><button type="submit" class="px-4 py-2 bg-slate-900 text-white rounded-xl font-semibold">+ Assegna</button></form>
+        </div>
+        <table class="w-full text-left border rounded-xl overflow-hidden"><thead class="bg-slate-50 uppercase text-[11px]"><tr><th class="px-3 py-2">Attrezzatura</th><th class="px-3 py-2">Tipo</th><th class="px-3 py-2 text-right">Qta</th><th class="px-3 py-2 text-right">Disp. Residua</th><th class="px-3 py-2 text-right">Noleggio</th><th class="px-3 py-2"></th></tr></thead>
+        <tbody class="divide-y">${(ev.equipmentList||[]).map(it=>{
+          const eq = state.equipment.find(e=>e.id===it.equipmentId); if(!eq) return '';
+          const av = getEquipmentAvailability(eq.id, ev.date, ev.id), over = it.qty > av.available;
+          return `<tr class="${over?'bg-rose-50':''}"><td class="px-3 py-2 font-semibold">${esc(eq.name)}</td><td class="px-3 py-2">${eq.type}</td><td class="px-3 py-2 text-right"><input type="number" min="1" value="${it.qty}" onchange="updEvEq('${ev.id}','${eq.id}',Number(this.value))" class="w-20 px-2 py-1 border rounded text-right font-bold" /></td><td class="px-3 py-2 text-right">${over?`<span class="px-2 py-0.5 rounded bg-rose-600 text-white font-bold">ALERT Max ${av.available}</span>`:`<span class="text-emerald-700 font-semibold">${av.available}</span>`}</td><td class="px-3 py-2 text-right">${eq.type==='A Noleggio'?fmtEuro(eq.rentalCost*it.qty):'-'}</td><td class="px-3 py-2 text-right"><button onclick="rmEvEq('${ev.id}','${eq.id}')" class="text-rose-500">✕</button></td></tr>`;
+        }).join('')}</tbody></table>
+      </div>`;
+    }
+    function addEvEq(e, evId) {
+      e.preventDefault(); const fd = new FormData(e.target), eqId = fd.get('equipmentId'), qty = Number(fd.get('qty'))||1, ev = state.events.find(x=>x.id===evId);
+      const ex = ev.equipmentList.find(x=>x.equipmentId===eqId); if (ex) ex.qty+=qty; else ev.equipmentList.push({equipmentId:eqId,qty});
+      const av = getEquipmentAvailability(eqId, ev.date, ev.id); if (ev.equipmentList.find(x=>x.equipmentId===eqId).qty > av.available) showToast(`Disponibilità superata (max ${av.available})!`, 'warning');
+      saveState(); renderApp();
+    }
+    function updEvEq(evId, eqId, q) { const it = state.events.find(x=>x.id===evId)?.equipmentList?.find(x=>x.equipmentId===eqId); if (it) { it.qty=Math.max(1,q); saveState(); renderApp(); } }
+    function rmEvEq(evId, eqId) { const ev = state.events.find(x=>x.id===evId); ev.equipmentList = ev.equipmentList.filter(x=>x.equipmentId!==eqId); saveState(); renderApp(); }
+
+    function renderEvTables(ev) {
+      const tbs = ev.tables || [];
+      return `<div class="space-y-4 text-xs">
+        <div class="flex flex-wrap justify-between items-center gap-2">
+          <div><h3 class="font-bold text-sm">Mappa Tavoli Interattiva (Tableau)</h3><span class="text-slate-500">Posti: <strong>${tbs.reduce((s,t)=>s+t.seats,0)}</strong> · Assegnati: <strong>${tbs.reduce((s,t)=>s+t.assigned,0)}</strong></span></div>
+          <form onsubmit="addEvTable(event,'${ev.id}')" class="flex flex-wrap gap-2"><input name="name" required placeholder="Nome Tavolo" class="px-2.5 py-1.5 rounded-lg border w-36" /><select name="shape" class="px-2.5 py-1.5 rounded-lg border"><option>Tondo</option><option>Imperiale</option><option>Sposi</option></select><input name="seats" type="number" value="10" class="w-16 px-2 py-1.5 rounded-lg border" /><input name="notes" placeholder="Note/Diete" class="px-2.5 py-1.5 rounded-lg border w-36" /><button type="submit" class="px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-semibold">+ Tavolo</button></form>
+        </div>
+        <div class="tableau-canvas relative min-h-[360px] rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-4 overflow-auto" ondragover="event.preventDefault()" ondrop="onTblDrop(event,'${ev.id}')">
+          <div class="relative min-w-[650px] min-h-[330px]" id="tbl-stage">
+            ${tbs.map((tb, i) => {
+              const x = tb.x ?? ((i%3)*210+30), y = tb.y ?? (Math.floor(i/3)*130+20);
+              const sc = tb.shape==='Tondo' ? 'rounded-full w-32 h-32' : (tb.shape==='Sposi' ? 'rounded-2xl w-44 h-20 bg-amber-50 border-amber-400' : 'rounded-xl w-48 h-24 bg-white');
+              return `<div draggable="true" ondragstart="onTblDrag(event,'${ev.id}','${tb.id}')" style="left:${x}px;top:${y}px;" class="absolute cursor-move select-none flex flex-col items-center justify-center p-2 text-center shadow border-2 ${tb.notes?'border-emerald-500':'border-slate-300'} bg-white ${sc}">
+                <div class="font-bold text-[11px] leading-tight">${esc(tb.name)}</div>
+                <div class="text-[10px] text-slate-500">${tb.assigned}/${tb.seats} pax</div>
+                ${tb.notes?`<div class="mt-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-bold truncate max-w-full">${esc(tb.notes)}</div>`:''}
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+        <div class="border rounded-xl overflow-x-auto"><table class="w-full text-left"><thead class="bg-slate-50 text-[11px] uppercase"><tr><th class="px-3 py-2">Tavolo</th><th class="px-3 py-2">Forma</th><th class="px-3 py-2 text-right">Posti</th><th class="px-3 py-2 text-right">Assegnati</th><th class="px-3 py-2">Note</th><th class="px-3 py-2"></th></tr></thead>
+        <tbody class="divide-y">${tbs.map(tb=>`<tr><td class="px-3 py-2"><input value="${esc(tb.name)}" onchange="updTbl('${ev.id}','${tb.id}','name',this.value)" class="px-2 py-1 border rounded w-40" /></td><td class="px-3 py-2">${tb.shape}</td><td class="px-3 py-2 text-right"><input type="number" value="${tb.seats}" onchange="updTbl('${ev.id}','${tb.id}','seats',Number(this.value))" class="w-16 px-2 py-1 border rounded text-right" /></td><td class="px-3 py-2 text-right"><input type="number" value="${tb.assigned}" onchange="updTbl('${ev.id}','${tb.id}','assigned',Number(this.value))" class="w-16 px-2 py-1 border rounded text-right font-bold" /></td><td class="px-3 py-2"><input value="${esc(tb.notes||'')}" onchange="updTbl('${ev.id}','${tb.id}','notes',this.value)" class="w-full px-2 py-1 border rounded" /></td><td class="px-3 py-2 text-right"><button onclick="rmTbl('${ev.id}','${tb.id}')" class="text-rose-500">✕</button></td></tr>`).join('')}</tbody></table></div>
+      </div>`;
+    }
+    function onTblDrag(e, evId, tbId) { const r = e.target.getBoundingClientRect(); draggedTableInfo = { evId, tbId, ox: e.clientX-r.left, oy: e.clientY-r.top }; }
+    function onTblDrop(e, evId) {
+      e.preventDefault(); if (!draggedTableInfo || draggedTableInfo.evId!==evId) return;
+      const st = document.getElementById('tbl-stage').getBoundingClientRect();
+      const tb = state.events.find(x=>x.id===evId)?.tables?.find(t=>t.id===draggedTableInfo.tbId);
+      if (tb) { tb.x = Math.max(0, Math.round(e.clientX-st.left-draggedTableInfo.ox)); tb.y = Math.max(0, Math.round(e.clientY-st.top-draggedTableInfo.oy)); saveState(); renderApp(); }
+      draggedTableInfo = null;
+    }
+    function addEvTable(e, evId) {
+      e.preventDefault(); const fd = new FormData(e.target), ev = state.events.find(x=>x.id===evId), idx = ev.tables.length, seats = Number(fd.get('seats'))||10;
+      ev.tables.push({id:uid('tb'),name:fd.get('name').trim(),shape:fd.get('shape'),seats,assigned:seats,notes:fd.get('notes').trim(),x:(idx%3)*210+30,y:Math.floor(idx/3)*130+20});
+      saveState(); renderApp();
+    }
+    function updTbl(evId, tbId, f, v) { const tb = state.events.find(x=>x.id===evId)?.tables?.find(t=>t.id===tbId); if(tb){tb[f]=v; saveState(); renderApp();} }
+    function rmTbl(evId, tbId) { const ev = state.events.find(x=>x.id===evId); ev.tables = ev.tables.filter(t=>t.id!==tbId); saveState(); renderApp(); }
+
+    function renderEvStaff(ev) {
+      return `<div class="space-y-4 text-xs">
+        <div class="flex flex-wrap justify-between items-center gap-2"><h3 class="font-bold text-sm">Brigata Assegnata</h3><form onsubmit="addEvStf(event,'${ev.id}')" class="flex gap-2"><select name="staffId" class="px-3 py-2 rounded-xl border">${state.staff.map(s=>`<option value="${s.id}">${esc(s.name)} (${fmtEuro(s.hourlyCost)}/h)</option>`).join('')}</select><input name="hours" type="number" step="0.5" value="8" class="w-20 px-3 py-2 rounded-xl border" /><button type="submit" class="px-4 py-2 bg-slate-900 text-white rounded-xl font-semibold">+ Assegna</button></form></div>
+        <table class="w-full text-left border rounded-xl overflow-hidden"><thead class="bg-slate-50 uppercase text-[11px]"><tr><th class="px-3 py-2">Nome</th><th class="px-3 py-2">Ruolo</th><th class="px-3 py-2 text-right">Orario</th><th class="px-3 py-2 text-right">Ore</th><th class="px-3 py-2 text-right">Totale</th><th class="px-3 py-2"></th></tr></thead>
+        <tbody class="divide-y">${(ev.staffAssigned||[]).map(sa=>{ const p=state.staff.find(x=>x.id===sa.staffId); if(!p)return''; return `<tr><td class="px-3 py-2 font-bold">${esc(p.name)}</td><td class="px-3 py-2">${esc(p.role)}</td><td class="px-3 py-2 text-right">${fmtEuro(p.hourlyCost)}</td><td class="px-3 py-2 text-right"><input type="number" step="0.5" value="${sa.hours}" onchange="updEvStf('${ev.id}','${p.id}',Number(this.value))" class="w-20 px-2 py-1 border rounded text-right font-bold" /></td><td class="px-3 py-2 text-right font-bold">${fmtEuro(p.hourlyCost*sa.hours)}</td><td class="px-3 py-2 text-right"><button onclick="rmEvStf('${ev.id}','${p.id}')" class="text-rose-500">✕</button></td></tr>`; }).join('')}</tbody></table>
+      </div>`;
+    }
+    function addEvStf(e, evId) { e.preventDefault(); const fd = new FormData(e.target), sid=fd.get('staffId'), h=Number(fd.get('hours'))||8, ev=state.events.find(x=>x.id===evId); const ex=ev.staffAssigned.find(s=>s.staffId===sid); if(ex)ex.hours=h; else ev.staffAssigned.push({staffId:sid,hours:h}); saveState(); renderApp(); }
+    function updEvStf(evId, sid, h) { const sa = state.events.find(x=>x.id===evId)?.staffAssigned?.find(s=>s.staffId===sid); if(sa){sa.hours=Math.max(0.5,h); saveState(); renderApp();} }
+    function rmEvStf(evId, sid) { const ev = state.events.find(x=>x.id===evId); ev.staffAssigned = ev.staffAssigned.filter(s=>s.staffId!==sid); saveState(); renderApp(); }
+
+    function renderEvPayments(ev, f) {
+      return `<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 text-xs">
+        <form onsubmit="addEvPay(event,'${ev.id}')" class="bg-slate-50 p-4 rounded-xl border space-y-3"><h3 class="font-bold text-sm">Registra Pagamento</h3><div class="grid grid-cols-2 gap-3"><input name="date" type="date" required value="${todayStr()}" class="px-3 py-2 rounded-xl border bg-white" /><input name="amount" type="number" step="0.01" required value="${Math.max(0,f.balanceDue)}" class="px-3 py-2 rounded-xl border bg-white font-bold" /></div><input name="label" required placeholder="Causale (es. Caparra / Saldo)" class="w-full px-3 py-2 rounded-xl border bg-white" /><button type="submit" class="w-full py-2 bg-emerald-600 text-white rounded-xl font-semibold">+ Registra Incasso</button></form>
+        <div class="border rounded-xl divide-y">${(ev.payments||[]).map(p=>`<div class="flex justify-between p-3"><div><strong>${esc(p.label)}</strong><div class="text-slate-500">${fmtDate(p.date)}</div></div><div class="flex items-center gap-3"><span class="font-bold text-emerald-700">${fmtEuro(p.amount)}</span><button onclick="rmEvPay('${ev.id}','${p.id}')" class="text-rose-500">✕</button></div></div>`).join('')||'<div class="p-6 text-center text-slate-400">Nessun pagamento</div>'}</div>
+      </div>`;
+    }
+    function addEvPay(e, evId) { e.preventDefault(); const fd = new FormData(e.target), ev = state.events.find(x=>x.id===evId); ev.payments.push({id:uid('pay'),date:fd.get('date'),label:fd.get('label').trim(),amount:Number(fd.get('amount'))||0}); saveState(); renderApp(); }
+    function rmEvPay(evId, pid) { const ev = state.events.find(x=>x.id===evId); ev.payments = ev.payments.filter(p=>p.id!==pid); saveState(); renderApp(); }
+
+    function renderEvBEO(ev) {
+      return `<div class="space-y-4 text-xs">
+        <div class="flex justify-between items-center"><h3 class="font-bold text-sm">Timeline Operativa BEO</h3><button onclick="printEventBEO('${ev.id}')" class="px-4 py-2 bg-slate-900 text-white rounded-xl font-semibold">Stampa / Salva PDF BEO</button></div>
+        <form onsubmit="addBEO(event,'${ev.id}')" class="flex gap-2"><input name="time" type="time" required class="px-2.5 py-1.5 rounded-lg border" /><input name="activity" required placeholder="Attività..." class="flex-1 px-2.5 py-1.5 rounded-lg border" /><button type="submit" class="px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-semibold">+ Aggiungi</button></form>
+        <div class="border rounded-xl divide-y">${(ev.timeline||[]).map((t,i)=>`<div class="flex justify-between p-2.5"><div><strong class="text-emerald-700 mr-2">${esc(t.time)}</strong>${esc(t.activity)}</div><button onclick="rmBEO('${ev.id}',${i})" class="text-rose-500">✕</button></div>`).join('')}</div>
+      </div>`;
+    }
+    function addBEO(e, evId) { e.preventDefault(); const fd = new FormData(e.target), ev = state.events.find(x=>x.id===evId); ev.timeline.push({time:fd.get('time'),activity:fd.get('activity').trim()}); ev.timeline.sort((a,b)=>a.time.localeCompare(b.time)); saveState(); renderApp(); }
+    function rmBEO(evId, idx) { const ev = state.events.find(x=>x.id===evId); ev.timeline.splice(idx,1); saveState(); renderApp(); }
+
+    // =========================================================================
+    // MODULO 6: MAGAZZINO, MOVIMENTI & FABBISOGNO 7GG
+    // =========================================================================
+    function renderInventory() {
+      return `
+        <div class="space-y-5">
+          <div class="inline-flex flex-wrap rounded-xl bg-white border border-slate-200 p-1">
+            ${[['carico','Carico Merci (DDT)'],['scarico','Scarico Venduto & Scarti'],['needs','Fabbisogno Acquisti 7gg'],['history',`Storico (${state.movements.length})`]].map(([id,lbl])=>`<button onclick="ui.inventorySubTab='${id}'; renderApp()" class="px-4 py-2 rounded-lg text-xs font-semibold ${ui.inventorySubTab===id?(id==='needs'?'bg-emerald-600 text-white':'bg-slate-900 text-white'):'text-slate-600'}">${lbl}</button>`).join('')}
+          </div>
+          ${ui.inventorySubTab==='carico'?`<div class="bg-white rounded-2xl p-6 border max-w-xl text-xs space-y-4"><h3 class="font-bold text-sm">Carico Merci (Aggiorna Stock & Listino Ricette)</h3><form onsubmit="submitCarico(event)" class="space-y-3"><div class="grid grid-cols-2 gap-3"><input name="date" type="date" required value="${todayStr()}" class="px-3 py-2 border rounded-xl" /><input name="refDoc" required placeholder="N. DDT / Fattura" class="px-3 py-2 border rounded-xl" /></div><select id="c-ing" name="ingredientId" onchange="document.getElementById('c-pr').value=this.options[this.selectedIndex].dataset.p" class="w-full px-3 py-2 border rounded-xl">${state.ingredients.map(i=>`<option value="${i.id}" data-p="${i.priceNet}">${esc(i.name)} (${fmtNum(i.stock)} ${i.uomPurchase})</option>`).join('')}</select><div class="grid grid-cols-2 gap-3"><div><label class="block font-semibold mb-1">Qta Caricata</label><input name="qty" type="number" step="0.01" required value="5" class="w-full px-3 py-2 border rounded-xl font-bold" /></div><div><label class="block font-semibold mb-1">Nuovo Prezzo Netto (€)</label><input id="c-pr" name="unitPrice" type="number" step="0.01" required value="${state.ingredients[0]?.priceNet||0}" class="w-full px-3 py-2 border rounded-xl font-bold" /></div></div><input name="note" placeholder="Note" class="w-full px-3 py-2 border rounded-xl" /><button type="submit" class="px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold">Registra Carico</button></form></div>`:''}
+          ${ui.inventorySubTab==='scarico'?renderScarico():''}
+          ${ui.inventorySubTab==='needs'?renderNeeds7d():''}
+          ${ui.inventorySubTab==='history'?`<div class="bg-white rounded-2xl border overflow-x-auto text-xs"><table class="w-full text-left"><thead class="bg-slate-50 uppercase text-[11px]"><tr><th class="px-4 py-2.5">Data</th><th class="px-4 py-2.5">Tipo</th><th class="px-4 py-2.5">Rif.</th><th class="px-4 py-2.5">Dettaglio</th><th class="px-4 py-2.5 text-right">Valore</th></tr></thead><tbody class="divide-y">${state.movements.map(m=>`<tr><td class="px-4 py-2.5">${fmtDate(m.date)}</td><td class="px-4 py-2.5 font-bold">${m.type}</td><td class="px-4 py-2.5">${esc(m.refDoc)}</td><td class="px-4 py-2.5">${esc(state.ingredients.find(i=>i.id===m.ingredientId)?.name||'')} ${esc(m.note)}</td><td class="px-4 py-2.5 text-right font-bold">${fmtEuro(m.totalValue)}</td></tr>`).join('')}</tbody></table></div>`:''}
+        </div>`;
+    }
+    function submitCarico(e) {
+      e.preventDefault(); const fd = new FormData(e.target), ing = state.ingredients.find(i=>i.id===fd.get('ingredientId')); if(!ing) return;
+      const q = Number(fd.get('qty'))||0, p = Number(fd.get('unitPrice'))||0;
+      ing.stock = round2((Number(ing.stock)||0)+q); ing.priceNet = p;
+      state.movements.unshift({id:uid('mv'),date:fd.get('date'),type:'CARICO',refDoc:fd.get('refDoc').trim(),ingredientId:ing.id,qty:q,unitPrice:p,totalValue:round2(q*p),note:fd.get('note').trim()});
+      saveState(); renderApp(); showToast('Carico registrato e ricette ricalcolate!', 'success');
+    }
+    function renderScarico() {
+      const nonSemi = state.recipes.filter(r=>!r.isSemiFinished), evs = state.events.filter(e=>e.status==='Confermato'||e.status==='Concluso');
+      return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-5 text-xs">
+        <form onsubmit="subSale(event)" class="bg-white rounded-2xl p-5 border space-y-3"><h3 class="font-bold text-sm">Scarico Venduto Sala</h3><input name="date" type="date" required value="${todayStr()}" class="w-full px-3 py-2 border rounded-xl" /><select name="recipeId" class="w-full px-3 py-2 border rounded-xl">${nonSemi.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('')}</select><input name="qty" type="number" min="1" value="10" required class="w-full px-3 py-2 border rounded-xl font-bold" /><button type="submit" class="w-full py-2.5 bg-slate-900 text-white rounded-xl font-semibold">Scarica da Venduto</button></form>
+        <form onsubmit="subEvDeduct(event)" class="bg-white rounded-2xl p-5 border space-y-3"><h3 class="font-bold text-sm">Chiusura Evento Banqueting</h3><select name="eventId" class="w-full px-3 py-2 border rounded-xl">${evs.map(e=>`<option value="${e.id}">${esc(e.name)} (${fmtDate(e.date)})</option>`).join('')}</select><button type="submit" class="w-full py-2.5 bg-emerald-600 text-white rounded-xl font-semibold">Scarica Magazzino Evento</button></form>
+        <form onsubmit="subWaste(event)" class="bg-white rounded-2xl p-5 border space-y-3"><h3 class="font-bold text-sm text-rose-700">Registro Scarti</h3><input name="date" type="date" required value="${todayStr()}" class="w-full px-3 py-2 border rounded-xl" /><select name="ingredientId" class="w-full px-3 py-2 border rounded-xl">${state.ingredients.map(i=>`<option value="${i.id}">${esc(i.name)} (${i.uomPurchase})</option>`).join('')}</select><input name="qty" type="number" step="0.01" value="0.5" required class="w-full px-3 py-2 border rounded-xl" /><input name="note" required placeholder="Motivo scarto" class="w-full px-3 py-2 border rounded-xl" /><button type="submit" class="w-full py-2.5 bg-rose-600 text-white rounded-xl font-semibold">Registra Scarto</button></form>
+      </div>`;
+    }
+    function subSale(e) {
+      e.preventDefault(); const fd = new FormData(e.target), rid = fd.get('recipeId'), qty = Number(fd.get('qty'))||0, d = fd.get('date');
+      const need = explodeRecipe(rid, qty);
+      Object.entries(need).forEach(([id,q])=>{ const i=state.ingredients.find(x=>x.id===id); if(i) i.stock=round2(Math.max(0,(Number(i.stock)||0)-q)); });
+      state.restaurantSales.push({id:uid('rs'),date:d,recipeId:rid,qty});
+      state.movements.unshift({id:uid('mv'),date:d,type:'SCARICO_VENDUTO',refDoc:'Sala',ingredientId:'',qty,unitPrice:0,totalValue:round2(qty*getRecipeAnalysis(rid).totalCost),note:`${qty}x ${state.recipes.find(r=>r.id===rid)?.name}`});
+      saveState(); renderApp(); showToast('Venduto registrato e stock scaricato!', 'success');
+    }
+    function subEvDeduct(e) {
+      e.preventDefault(); const ev = state.events.find(x=>x.id===new FormData(e.target).get('eventId')); const pkg = state.packages.find(p=>p.id===ev?.packageId); if(!pkg) return;
+      const pax = ev.adults + ev.children*((Number(pkg.childCostPct)||50)/100), acc = {};
+      pkg.recipeIds.forEach(rid=>explodeRecipe(rid, pax, acc));
+      Object.entries(acc).forEach(([id,q])=>{ const i=state.ingredients.find(x=>x.id===id); if(i) i.stock=round2(Math.max(0,(Number(i.stock)||0)-q)); });
+      state.movements.unshift({id:uid('mv'),date:todayStr(),type:'SCARICO_EVENTO',refDoc:ev.name,ingredientId:'',qty:pax,unitPrice:0,totalValue:getEventFinancials(ev).foodCost,note:`Scarico evento ${ev.name}`});
+      saveState(); renderApp(); showToast(`Scarico completato per ${ev.name}!`, 'success');
+    }
+    function subWaste(e) {
+      e.preventDefault(); const fd = new FormData(e.target), ing = state.ingredients.find(i=>i.id===fd.get('ingredientId')), q = Number(fd.get('qty'))||0; if(!ing) return;
+      ing.stock = round2(Math.max(0,(Number(ing.stock)||0)-q));
+      state.movements.unshift({id:uid('mv'),date:fd.get('date'),type:'SCARTO',refDoc:'Scarto',ingredientId:ing.id,qty:q,unitPrice:ing.priceNet,totalValue:round2(q*ing.priceNet),note:fd.get('note').trim()});
+      saveState(); renderApp(); showToast('Scarto registrato.', 'warning');
+    }
+
+    function calc7DayNeeds() {
+      const start = todayStr(), end = todayStr(7);
+      const up = state.events.filter(e=>e.status==='Confermato' && e.date>=start && e.date<=end);
+      const evNeeds = {};
+      up.forEach(ev=>{ const pkg=state.packages.find(p=>p.id===ev.packageId); if(!pkg)return; const pax=ev.adults+ev.children*((Number(pkg.childCostPct)||50)/100); pkg.recipeIds.forEach(rid=>explodeRecipe(rid,pax,evNeeds)); });
+      const bySup = {};
+      state.ingredients.forEach(ing=>{
+        const evQ = evNeeds[ing.id]||0, ord = round2(Math.max(0, (evQ + (Number(ing.minStock)||0)) - (Number(ing.stock)||0)));
+        if (ord > 0) { const sid = ing.supplierId||'none'; if(!bySup[sid]) bySup[sid]=[]; bySup[sid].push({ing,evQ:round2(evQ),ord,cost:round2(ord*(Number(ing.priceNet)||0))}); }
+      });
+      return { up, bySup };
+    }
+    function renderNeeds7d() {
+      const { up, bySup } = calc7DayNeeds();
+      return `<div class="space-y-4 text-xs">
+        <div class="bg-white rounded-2xl p-4 border flex flex-wrap justify-between items-center gap-3">
+          <div><h3 class="font-bold text-sm">Fabbisogno Acquisti (Prossimi 7gg + Scorte Minime)</h3><p class="text-slate-500">Eventi confermati inclusi: <strong>${up.length}</strong> (${up.map(e=>e.name).join(', ')||'nessuno'})</p></div>
+          <button onclick="exportNeedsCSV()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl font-semibold">Esporta Lista Spesa CSV</button>
+        </div>
+        ${Object.entries(bySup).map(([sid, items])=>{
+          const sup = state.suppliers.find(s=>s.id===sid);
+          return `<div class="bg-white rounded-2xl border overflow-hidden"><div class="px-4 py-3 bg-slate-900 text-white flex justify-between font-bold"><span>${esc(sup?.name||'Senza Fornitore')}</span><span class="text-emerald-400">Totale: ${fmtEuro(items.reduce((s,x)=>s+x.cost,0))}</span></div>
+          <table class="w-full text-left"><thead class="bg-slate-50 text-[11px] uppercase"><tr><th class="px-4 py-2">Articolo</th><th class="px-4 py-2 text-right">Fabb. Eventi</th><th class="px-4 py-2 text-right">Stock</th><th class="px-4 py-2 text-right">Min</th><th class="px-4 py-2 text-right">Da Ordinare</th><th class="px-4 py-2 text-right">Stima €</th></tr></thead>
+          <tbody class="divide-y">${items.map(it=>`<tr><td class="px-4 py-2 font-semibold">${esc(it.ing.name)}</td><td class="px-4 py-2 text-right">${fmtNum(it.evQ)} ${it.ing.uomPurchase}</td><td class="px-4 py-2 text-right">${fmtNum(it.ing.stock)}</td><td class="px-4 py-2 text-right">${fmtNum(it.ing.minStock)}</td><td class="px-4 py-2 text-right font-extrabold text-emerald-700">${fmtNum(it.ord)} ${it.ing.uomPurchase}</td><td class="px-4 py-2 text-right font-bold">${fmtEuro(it.cost)}</td></tr>`).join('')}</tbody></table></div>`;
+        }).join('')||'<div class="bg-white rounded-2xl p-8 text-center text-emerald-700 font-semibold border">Nessun acquisto necessario!</div>'}
+      </div>`;
+    }
+    function exportNeedsCSV() {
+      const { bySup } = calc7DayNeeds(), rows = [];
+      Object.entries(bySup).forEach(([sid, items])=>{ const sn=state.suppliers.find(s=>s.id===sid)?.name||'N/D'; items.forEach(it=>rows.push([sn,it.ing.code,it.ing.name,fmtNum(it.evQ),fmtNum(it.ing.stock),fmtNum(it.ord),it.ing.uomPurchase,fmtNum(it.cost)])); });
+      downloadCSV(`fabbisogno_7gg_${todayStr()}.csv`, ['Fornitore','Codice','Articolo','Fabb Eventi','Stock','Da Ordinare','UdM','Stima €'], rows);
+    }
+
+    // =========================================================================
+    // MODULO 7: PERSONALE, TURNI & FORNITORI
+    // =========================================================================
+    function renderStaffAndSuppliers() {
+      if (!ui.shiftWeekStart) ui.shiftWeekStart = getMonday(todayStr());
+      return `<div class="space-y-5">
+        <div class="flex flex-wrap justify-between items-center gap-3">
+          <div class="inline-flex rounded-xl bg-white border p-1">
+            <button onclick="ui.staffSubTab='staff'; renderApp()" class="px-4 py-2 rounded-lg text-xs font-semibold ${ui.staffSubTab==='staff'?'bg-slate-900 text-white':'text-slate-600'}">Staff (${state.staff.length})</button>
+            <button onclick="ui.staffSubTab='shifts'; renderApp()" class="px-4 py-2 rounded-lg text-xs font-semibold ${ui.staffSubTab==='shifts'?'bg-slate-900 text-white':'text-slate-600'}">Turni Settimanali</button>
+            <button onclick="ui.staffSubTab='suppliers'; renderApp()" class="px-4 py-2 rounded-lg text-xs font-semibold ${ui.staffSubTab==='suppliers'?'bg-slate-900 text-white':'text-slate-600'}">Fornitori (${state.suppliers.length})</button>
+          </div>
+          ${ui.staffSubTab==='staff'?`<button onclick="openStaffModal()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold">+ Nuovo Staff</button>`:''}
+          ${ui.staffSubTab==='suppliers'?`<button onclick="openSupplierModal()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold">+ Nuovo Fornitore</button>`:''}
+        </div>
+        ${ui.staffSubTab==='staff'?`<div class="bg-white rounded-2xl border overflow-x-auto text-xs"><table class="w-full text-left"><thead class="bg-slate-50 uppercase text-[11px]"><tr><th class="px-4 py-3">Nome</th><th class="px-4 py-3">Ruolo</th><th class="px-4 py-3">Contratto</th><th class="px-4 py-3">Tel</th><th class="px-4 py-3 text-right">Costo/h</th><th class="px-4 py-3"></th></tr></thead><tbody class="divide-y">${state.staff.map(s=>`<tr><td class="px-4 py-3 font-bold">${esc(s.name)}</td><td class="px-4 py-3">${esc(s.role)}</td><td class="px-4 py-3">${esc(s.contract)}</td><td class="px-4 py-3">${esc(s.phone)}</td><td class="px-4 py-3 text-right font-bold text-emerald-700">${fmtEuro(s.hourlyCost)}</td><td class="px-4 py-3 text-right"><button onclick="openStaffModal('${s.id}')" class="p-1"><i data-lucide="edit-3" class="w-4 h-4"></i></button><button onclick="delStaff('${s.id}')" class="p-1 text-rose-600"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td></tr>`).join('')}</tbody></table></div>`:''}
+        ${ui.staffSubTab==='shifts'?renderShiftsTab():''}
+        ${ui.staffSubTab==='suppliers'?`<div class="bg-white rounded-2xl border overflow-x-auto text-xs"><table class="w-full text-left"><thead class="bg-slate-50 uppercase text-[11px]"><tr><th class="px-4 py-3">Fornitore</th><th class="px-4 py-3">Cat.</th><th class="px-4 py-3">Contatti</th><th class="px-4 py-3">Consegne</th><th class="px-4 py-3">Pagamento</th><th class="px-4 py-3"></th></tr></thead><tbody class="divide-y">${state.suppliers.map(s=>`<tr><td class="px-4 py-3 font-bold">${esc(s.name)}</td><td class="px-4 py-3">${esc(s.category)}</td><td class="px-4 py-3">${esc(s.phone)} · ${esc(s.email)}</td><td class="px-4 py-3">${esc(s.deliveryDays)}</td><td class="px-4 py-3">${esc(s.paymentTerms)}</td><td class="px-4 py-3 text-right"><button onclick="openSupplierModal('${s.id}')" class="p-1"><i data-lucide="edit-3" class="w-4 h-4"></i></button><button onclick="delSup('${s.id}')" class="p-1 text-rose-600"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td></tr>`).join('')}</tbody></table></div>`:''}
+      </div>`;
+    }
+    function openStaffModal(id=null) {
+      const s = id?state.staff.find(x=>x.id===id):{id:'',name:'',role:'Cameriere',contract:'Indeterminato',hourlyCost:16,phone:''};
+      openModal(`<div class="px-6 py-4 border-b flex justify-between bg-slate-50"><h3 class="font-bold">Staff</h3><button onclick="closeModal()"><i data-lucide="x" class="w-5 h-5"></i></button></div><form onsubmit="saveStf(event,'${id||''}')" class="p-6 space-y-3 text-xs"><div class="grid grid-cols-2 gap-3"><input name="name" required placeholder="Nome" value="${esc(s.name)}" class="px-3 py-2 border rounded-xl" /><input name="role" required placeholder="Ruolo" value="${esc(s.role)}" class="px-3 py-2 border rounded-xl" /></div><div class="grid grid-cols-3 gap-3"><select name="contract" class="px-3 py-2 border rounded-xl">${['Indeterminato','Determinato','Extra / Chiamata'].map(c=>`<option ${s.contract===c?'selected':''}>${c}</option>`).join('')}</select><input name="hourlyCost" type="number" step="0.5" required value="${s.hourlyCost}" class="px-3 py-2 border rounded-xl" /><input name="phone" placeholder="Tel" value="${esc(s.phone)}" class="px-3 py-2 border rounded-xl" /></div><div class="flex justify-end gap-2"><button type="button" onclick="closeModal()" class="px-4 py-2 border rounded-xl">Annulla</button><button type="submit" class="px-5 py-2 bg-emerald-600 text-white rounded-xl font-semibold">Salva</button></div></form>`);
+    }
+    function saveStf(e,id){ e.preventDefault(); const fd=new FormData(e.target), o={id:id||uid('stf'),name:fd.get('name').trim(),role:fd.get('role').trim(),contract:fd.get('contract'),hourlyCost:Number(fd.get('hourlyCost'))||0,phone:fd.get('phone').trim()}; if(id){const i=state.staff.findIndex(x=>x.id===id); if(i>=0)state.staff[i]=o;}else state.staff.push(o); saveState(); closeModal(); renderApp(); }
+    function delStaff(id){ if(confirm('Eliminare?')){state.staff=state.staff.filter(s=>s.id!==id); saveState(); renderApp();} }
+
+    function renderShiftsTab() {
+      const days = Array.from({length:7},(_,i)=>addDays(ui.shiftWeekStart,i)), dn = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
+      let wTot = 0; const dTot = days.map(d=>{ const c=state.shifts.filter(sh=>sh.date===d).reduce((s,sh)=>{const p=state.staff.find(x=>x.id===sh.staffId); return s+(p?p.hourlyCost*sh.hours:0);},0); wTot+=c; return round2(c); });
+      return `<div class="space-y-4 text-xs">
+        <div class="bg-white rounded-2xl p-4 border flex flex-wrap justify-between items-center gap-3"><div class="flex items-center gap-2"><button onclick="ui.shiftWeekStart=addDays(ui.shiftWeekStart,-7); renderApp()" class="px-3 py-1 border rounded">&larr;</button><strong>${fmtDate(days[0])} - ${fmtDate(days[6])}</strong><button onclick="ui.shiftWeekStart=addDays(ui.shiftWeekStart,7); renderApp()" class="px-3 py-1 border rounded">&rarr;</button></div><strong class="text-emerald-700 text-sm">Costo Lavoro Settimana: ${fmtEuro(wTot)}</strong></div>
+        <form onsubmit="addShift(event)" class="bg-white rounded-2xl p-4 border flex flex-wrap gap-2"><select name="staffId" class="px-3 py-2 border rounded-xl">${state.staff.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select><select name="date" class="px-3 py-2 border rounded-xl">${days.map((d,i)=>`<option value="${d}">${dn[i]} ${fmtDate(d)}</option>`).join('')}</select><input name="hours" type="number" step="0.5" value="8" class="w-20 px-3 py-2 border rounded-xl" /><select name="area" class="px-3 py-2 border rounded-xl"><option>Cucina Ristorante</option><option>Sala Ristorante</option><option>Bar</option></select><button type="submit" class="px-4 py-2 bg-slate-900 text-white rounded-xl font-semibold">+ Turno</button></form>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">${days.map((d,i)=>`<div class="bg-white rounded-2xl border p-3 flex flex-col justify-between"><div><div class="font-bold border-b pb-1 mb-2">${dn[i]} ${d.slice(8)}/${d.slice(5,7)}</div><div class="space-y-1.5">${state.shifts.filter(sh=>sh.date===d).map(sh=>`<div class="p-2 bg-slate-50 rounded border relative"><div class="font-semibold pr-4">${esc(state.staff.find(p=>p.id===sh.staffId)?.name||'-')}</div><div class="text-[10px] text-slate-500">${sh.hours}h · ${esc(sh.area)}</div><button onclick="rmShift('${sh.id}')" class="absolute top-1 right-1 text-rose-500">✕</button></div>`).join('')||'<span class="text-slate-400 italic">Vuoto</span>'}</div></div><div class="mt-3 pt-2 border-t text-right font-bold text-amber-700">${fmtEuro(dTot[i])}</div></div>`).join('')}</div>
+      </div>`;
+    }
+    function addShift(e){ e.preventDefault(); const fd=new FormData(e.target); state.shifts.push({id:uid('sh'),staffId:fd.get('staffId'),date:fd.get('date'),hours:Number(fd.get('hours'))||8,area:fd.get('area')}); saveState(); renderApp(); }
+    function rmShift(id){ state.shifts=state.shifts.filter(s=>s.id!==id); saveState(); renderApp(); }
+
+    function openSupplierModal(id=null){
+      const s=id?state.suppliers.find(x=>x.id===id):{id:'',name:'',category:'Food',phone:'',email:'',deliveryDays:'Lun, Gio',paymentTerms:'30 gg FM'};
+      openModal(`<div class="px-6 py-4 border-b flex justify-between bg-slate-50"><h3 class="font-bold">Fornitore</h3><button onclick="closeModal()"><i data-lucide="x" class="w-5 h-5"></i></button></div><form onsubmit="saveSup(event,'${id||''}')" class="p-6 space-y-3 text-xs"><div class="grid grid-cols-2 gap-3"><input name="name" required placeholder="Ragione Sociale" value="${esc(s.name)}" class="px-3 py-2 border rounded-xl" /><select name="category" class="px-3 py-2 border rounded-xl">${['Food','Beverage','Food/Dry','Noleggi/Lavanderia','Fioristi'].map(c=>`<option ${s.category===c?'selected':''}>${c}</option>`).join('')}</select></div><div class="grid grid-cols-2 gap-3"><input name="phone" placeholder="Telefono" value="${esc(s.phone)}" class="px-3 py-2 border rounded-xl" /><input name="email" placeholder="Email" value="${esc(s.email)}" class="px-3 py-2 border rounded-xl" /></div><div class="grid grid-cols-2 gap-3"><input name="deliveryDays" placeholder="Giorni Consegna" value="${esc(s.deliveryDays)}" class="px-3 py-2 border rounded-xl" /><input name="paymentTerms" placeholder="Condizioni Pagamento" value="${esc(s.paymentTerms)}" class="px-3 py-2 border rounded-xl" /></div><div class="flex justify-end gap-2"><button type="button" onclick="closeModal()" class="px-4 py-2 border rounded-xl">Annulla</button><button type="submit" class="px-5 py-2 bg-emerald-600 text-white rounded-xl font-semibold">Salva</button></div></form>`);
+    }
+    function saveSup(e,id){ e.preventDefault(); const fd=new FormData(e.target), o={id:id||uid('sup'),name:fd.get('name').trim(),category:fd.get('category'),phone:fd.get('phone').trim(),email:fd.get('email').trim(),deliveryDays:fd.get('deliveryDays').trim(),paymentTerms:fd.get('paymentTerms').trim()}; if(id){const i=state.suppliers.findIndex(x=>x.id===id); if(i>=0)state.suppliers[i]=o;}else state.suppliers.push(o); saveState(); closeModal(); renderApp(); }
+    function delSup(id){ if(confirm('Eliminare?')){state.suppliers=state.suppliers.filter(s=>s.id!==id); saveState(); renderApp();} }
+
+    // =========================================================================
+    // MODULO 8: MENU ENGINEERING (MATRICE KASAVANA & SMITH)
+    // =========================================================================
+    function getMenuEngineeringData() {
+      const dishes = state.recipes.filter(r => !r.isSemiFinished && Number(r.sellingPriceNet) > 0);
+      const qtyMap = {};
+      state.restaurantSales.forEach(s => { qtyMap[s.recipeId] = (qtyMap[s.recipeId] || 0) + (Number(s.qty) || 0); });
+
+      let totalQty = 0, totalCM = 0;
+      const raw = dishes.map(d => {
+        const ra = getRecipeAnalysis(d.id), qtySold = qtyMap[d.id] || 0;
+        const margin = round2((Number(d.sellingPriceNet) || 0) - ra.totalCost);
+        const totalMargin = round2(margin * qtySold);
+        totalQty += qtySold; totalCM += totalMargin;
+        return { id: d.id, name: d.name, category: d.category, qtySold, cost: ra.totalCost, price: Number(d.sellingPriceNet), fcPct: ra.foodCostPct, margin, totalMargin };
+      });
+
+      const n = Math.max(raw.length, 1);
+      const popThreshold = round2((0.70 / n) * totalQty);
+      const cmThreshold = totalQty > 0 ? round2(totalCM / totalQty) : 0;
+
+      const items = raw.map(it => {
+        const highPop = it.qtySold >= popThreshold, highCM = it.margin >= cmThreshold;
+        let classification = 'DOG', tip = 'Valutare rimozione dal menu o completo restyling ricetta/prezzo.';
+        if (highPop && highCM) { classification = 'STAR'; tip = 'Piatto punta di diamante: mantenere qualità costante e massima visibilità in carta.'; }
+        else if (highPop && !highCM) { classification = 'PLOWHORSE'; tip = 'Molto venduto ma margine basso: ottimizzare grammatura, food cost o aumentare leggermente il prezzo.'; }
+        else if (!highPop && highCM) { classification = 'PUZZLE'; tip = 'Alto margine ma poche vendite: spingere tramite upselling dei camerieri o box evidenziato.'; }
+        return { ...it, classification, tip };
+      });
+      return { items, popThreshold, cmThreshold, totalQty, totalCM: round2(totalCM) };
+    }
+
+    function renderMenuEngineering() {
+      const d = getMenuEngineeringData();
+      const badge = { STAR: 'bg-emerald-100 text-emerald-800', PLOWHORSE: 'bg-amber-100 text-amber-800', PUZZLE: 'bg-blue-100 text-blue-800', DOG: 'bg-rose-100 text-rose-800' };
+      return `
+        <div class="space-y-5">
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs">
+            <div class="bg-white p-4 rounded-2xl border"><div class="text-slate-500">Piatti Analizzati</div><div class="text-xl font-extrabold mt-1">${d.items.length}</div></div>
+            <div class="bg-white p-4 rounded-2xl border"><div class="text-slate-500">Porzioni Vendute</div><div class="text-xl font-extrabold mt-1">${d.totalQty}</div></div>
+            <div class="bg-white p-4 rounded-2xl border"><div class="text-slate-500">Soglia Popolarità (70%)</div><div class="text-xl font-extrabold text-amber-600 mt-1">${fmtNum(d.popThreshold, 1)} pz</div></div>
+            <div class="bg-white p-4 rounded-2xl border"><div class="text-slate-500">Margine Medio Ponderato</div><div class="text-xl font-extrabold text-emerald-700 mt-1">${fmtEuro(d.cmThreshold)}</div></div>
+          </div>
+          <div class="bg-white rounded-2xl p-5 border"><h2 class="text-sm font-bold mb-1">Matrice Kasavana & Smith (Popolarità vs Margine)</h2><div class="h-72"><canvas id="chart-menu-eng"></canvas></div></div>
+          <div class="bg-white rounded-2xl border overflow-x-auto text-xs">
+            <table class="w-full text-left"><thead class="bg-slate-50 uppercase text-[11px] border-b"><tr><th class="px-4 py-3">Piatto / Drink</th><th class="px-4 py-3 text-right">Venduti</th><th class="px-4 py-3 text-right">Costo</th><th class="px-4 py-3 text-right">Prezzo</th><th class="px-4 py-3 text-right">Margine Unit.</th><th class="px-4 py-3 text-right">Margine Tot.</th><th class="px-4 py-3">Classe</th><th class="px-4 py-3">Suggerimento Operativo</th></tr></thead>
+            <tbody class="divide-y">${d.items.map(it=>`<tr><td class="px-4 py-3 font-bold">${esc(it.name)}<div class="text-[10px] text-slate-400">${esc(it.category)}</div></td><td class="px-4 py-3 text-right font-bold">${it.qtySold}</td><td class="px-4 py-3 text-right">${fmtEuro(it.cost)}</td><td class="px-4 py-3 text-right">${fmtEuro(it.price)}</td><td class="px-4 py-3 text-right font-bold text-emerald-700">${fmtEuro(it.margin)}</td><td class="px-4 py-3 text-right font-bold">${fmtEuro(it.totalMargin)}</td><td class="px-4 py-3"><span class="px-2.5 py-0.5 rounded-full font-extrabold text-[11px] ${badge[it.classification]}">${it.classification}</span></td><td class="px-4 py-3 text-slate-600 max-w-xs">${it.tip}</td></tr>`).join('')}</tbody></table>
+          </div>
+        </div>`;
+    }
+
+    function initMenuEngChart() {
+      const d = getMenuEngineeringData(), ctx = document.getElementById('chart-menu-eng'); if (!ctx) return;
+      const colors = { STAR: '#10b981', PLOWHORSE: '#f59e0b', PUZZLE: '#3b82f6', DOG: '#ef4444' };
+      chartInstances.me = new Chart(ctx, {
+        type: 'scatter',
+        data: { datasets: ['STAR','PLOWHORSE','PUZZLE','DOG'].map(cls => ({ label: cls, data: d.items.filter(i=>i.classification===cls).map(i=>({x:i.qtySold,y:i.margin,name:i.name})), backgroundColor: colors[cls], pointRadius: 7 })) },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { tooltip: { callbacks: { label: c => `${c.raw.name}: ${c.raw.x} pz, Margine ${fmtEuro(c.raw.y)}` } }, legend: { position: 'bottom' } },
+          scales: { x: { title: { display: true, text: 'Quantità Venduta (Popolarità)' } }, y: { title: { display: true, text: 'Margine di Contribuzione (€)' } } }
+        }
+      });
+    }
+
+    // =========================================================================
+    // STAMPA / PDF (SCHEDA TECNICA, PREVENTIVO, BEO)
+    // =========================================================================
+    function triggerPrint(html) {
+      document.getElementById('print-area').innerHTML = html;
+      setTimeout(() => window.print(), 100);
+    }
+
+    function printRecipeSheet(id) {
+      const r = state.recipes.find(x=>x.id===id), ra = getRecipeAnalysis(id); if (!r) return;
+      triggerPrint(`
+        <div class="border-b-2 border-slate-900 pb-4 mb-6 flex justify-between items-end">
+          <div><div class="text-xs uppercase tracking-widest text-slate-500">GustòPro ERP — Scheda Tecnica Piatto</div><h1 class="text-2xl font-bold mt-1">${esc(r.name)}</h1><div class="text-sm text-slate-600">${esc(r.code)} · ${esc(r.category)}</div></div>
+          <div class="text-right text-sm"><div>Costo: <strong>${fmtEuro(ra.totalCost)}</strong></div><div>Vendita Netta: <strong>${fmtEuro(r.sellingPriceNet)}</strong> (FC ${fmtNum(ra.foodCostPct,1)}%)</div></div>
+        </div>
+        <h2 class="font-bold text-sm uppercase mb-2">Ingredienti & Grammature</h2>
+        <table class="w-full text-sm border mb-6"><thead class="bg-slate-100"><tr><th class="p-2 text-left border">Ingrediente</th><th class="p-2 text-right border">Quantità</th><th class="p-2 text-right border">Costo</th></tr></thead>
+        <tbody>${(r.items||[]).map(it=>{
+          const n = it.type==='ingredient' ? state.ingredients.find(i=>i.id===it.refId)?.name : '[SL] '+state.recipes.find(x=>x.id===it.refId)?.name;
+          const u = it.type==='ingredient' ? state.ingredients.find(i=>i.id===it.refId)?.uomUse : state.recipes.find(x=>x.id===it.refId)?.yieldUom;
+          const c = it.type==='ingredient' ? getIngUsableUseUnitCost(state.ingredients.find(i=>i.id===it.refId)||{})*it.qty : getRecipeAnalysis(it.refId).costPerYieldUnit*it.qty;
+          return `<tr><td class="p-2 border">${esc(n)}</td><td class="p-2 text-right border">${it.qty} ${u||''}</td><td class="p-2 text-right border">${fmtEuro(c)}</td></tr>`;
+        }).join('')}</tbody></table>
+        <div class="mb-4 text-sm"><strong>Allergeni Presenti:</strong> ${ra.allergens.map(a=>ALLERGENS.find(x=>x.id===a)?.label||a).join(', ')||'Nessuno'}</div>
+        <div class="p-4 bg-slate-50 border rounded text-sm"><strong>Procedimento & Note:</strong><p class="mt-1">${esc(r.notes||'-')}</p></div>`);
+    }
+
+    function printEventQuote(evId) {
+      const ev = state.events.find(e=>e.id===evId), f = getEventFinancials(ev), pkg = state.packages.find(p=>p.id===ev?.packageId); if(!ev) return;
+      triggerPrint(`
+        <div class="border-b-2 border-slate-900 pb-4 mb-6 flex justify-between">
+          <div><div class="text-xs uppercase text-slate-500">Preventivo Banqueting & Ricevimenti</div><h1 class="text-2xl font-bold mt-1">${esc(ev.name)}</h1><div class="text-sm text-slate-600">Data: ${fmtDate(ev.date)} (${esc(ev.timeSlot)}) · Location: ${esc(ev.locationName)}</div></div>
+          <div class="text-right text-sm"><div>Cliente: <strong>${esc(ev.clientName)}</strong></div><div>Tel: ${esc(ev.clientPhone||'-')}</div></div>
+        </div>
+        <h2 class="font-bold text-sm uppercase mb-2">Proposta Menu: ${esc(pkg?.name||'-')}</h2>
+        <p class="text-sm text-slate-600 mb-4">${esc(pkg?.description||'')}</p>
+        <table class="w-full text-sm border mb-6"><thead class="bg-slate-100"><tr><th class="p-2 text-left border">Voce</th><th class="p-2 text-right border">Qta</th><th class="p-2 text-right border">Unitario Netto</th><th class="p-2 text-right border">Totale Netto</th></tr></thead>
+        <tbody>
+          <tr><td class="p-2 border">Menu Adulti (${esc(pkg?.name||'')})</td><td class="p-2 text-right border">${ev.adults}</td><td class="p-2 text-right border">${fmtEuro(pkg?.adultPriceNet||0)}</td><td class="p-2 text-right border">${fmtEuro(ev.adults*(pkg?.adultPriceNet||0))}</td></tr>
+          ${ev.children>0?`<tr><td class="p-2 border">Menu Bambini</td><td class="p-2 text-right border">${ev.children}</td><td class="p-2 text-right border">${fmtEuro(pkg?.childPriceNet||0)}</td><td class="p-2 text-right border">${fmtEuro(ev.children*(pkg?.childPriceNet||0))}</td></tr>`:''}
+          ${(ev.extras||[]).map(ex=>`<tr><td class="p-2 border">${esc(ex.name)}</td><td class="p-2 text-right border">1</td><td class="p-2 text-right border">${fmtEuro(ex.clientPrice)}</td><td class="p-2 text-right border">${fmtEuro(ex.clientPrice)}</td></tr>`).join('')}
+        </tbody></table>
+        <div class="text-right space-y-1 text-base">
+          <div>Imponibile Netto: <strong>${fmtEuro(f.totalRevenue)}</strong></div>
+          <div>IVA 10%: <strong>${fmtEuro(round2(f.totalRevenue*0.10))}</strong></div>
+          <div class="text-xl font-bold border-t pt-2">Totale Preventivo (IVA incl.): ${fmtEuro(round2(f.totalRevenue*1.10))}</div>
+          <div class="text-sm text-slate-600 mt-2">Acconti versati: ${fmtEuro(f.paidAmount)} · Residuo Netto: ${fmtEuro(f.balanceDue)}</div>
+        </div>`);
+    }
+
+    function printEventBEO(evId) {
+      const ev = state.events.find(e=>e.id===evId), pkg = state.packages.find(p=>p.id===ev?.packageId); if(!ev) return;
+      triggerPrint(`
+        <div class="border-b-2 border-slate-900 pb-4 mb-5 flex justify-between">
+          <div><div class="text-xs uppercase font-bold text-emerald-700">BEO — BANQUET EVENT ORDER (ORDINE DI SERVIZIO)</div><h1 class="text-2xl font-bold mt-1">${esc(ev.name)}</h1><div class="text-sm">${fmtDate(ev.date)} · ${esc(ev.timeSlot)} · ${esc(ev.locationName)} (${ev.locationType})</div></div>
+          <div class="text-right text-sm font-bold"><div>Adulti: ${ev.adults} | Bimbi: ${ev.children} | Staff: ${ev.staffMeals}</div><div class="text-slate-500 font-normal">Stato: ${ev.status}</div></div>
+        </div>
+        <div class="p-3 bg-amber-50 border border-amber-300 rounded mb-4 text-sm"><strong>INTOLLERANZE & DIETE SPECIALI:</strong> ${esc(ev.dietaryNotes||'Nessuna segnalata')}</div>
+        <div class="grid grid-cols-2 gap-6 mb-5 text-sm">
+          <div><h3 class="font-bold uppercase border-b pb-1 mb-2">Timeline Oraria</h3>${(ev.timeline||[]).map(t=>`<div><strong>${esc(t.time)}</strong> — ${esc(t.activity)}</div>`).join('')||'-'}</div>
+          <div><h3 class="font-bold uppercase border-b pb-1 mb-2">Menu: ${esc(pkg?.name||'-')}</h3><ul class="list-disc pl-4">${(pkg?.recipeIds||[]).map(rid=>`<li>${esc(state.recipes.find(r=>r.id===rid)?.name||'')}</li>`).join('')}</ul></div>
+        </div>
+        <div class="grid grid-cols-2 gap-6 text-sm">
+          <div><h3 class="font-bold uppercase border-b pb-1 mb-2">Mappa Tavoli (${(ev.tables||[]).length})</h3><table class="w-full border text-xs">${(ev.tables||[]).map(t=>`<tr><td class="p-1.5 border font-semibold">${esc(t.name)}</td><td class="p-1.5 border">${t.assigned}/${t.seats}</td><td class="p-1.5 border">${esc(t.notes||'-')}</td></tr>`).join('')}</table></div>
+          <div><h3 class="font-bold uppercase border-b pb-1 mb-2">Packing List Attrezzature & Brigata</h3>
+            <div class="mb-3">${(ev.equipmentList||[]).map(it=>`<div>• ${esc(state.equipment.find(e=>e.id===it.equipmentId)?.name||'')} <strong>x${it.qty}</strong></div>`).join('')||'-'}</div>
+            <div class="border-t pt-2"><strong>Brigata:</strong> ${(ev.staffAssigned||[]).map(sa=>`${esc(state.staff.find(s=>s.id===sa.staffId)?.name||'')} (${sa.hours}h)`).join(', ')||'-'}</div>
+          </div>
+        </div>`);
+    }
+
+    // =========================================================================
+    // INIT
+    // =========================================================================
+    document.addEventListener('DOMContentLoaded', () => {
+      loadState();
+      renderApp();
+    });
+  </script>
+</body>
+</html>
+```
